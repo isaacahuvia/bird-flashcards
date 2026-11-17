@@ -308,9 +308,9 @@ const HAB_WORDS = [
   ["wetland", /\b(marsh(es)?|swamps?|wetlands?|rice ?fields|lagoons?|reed ?beds?)\b/i],
   ["water", /\b(lakes?|ponds?|reservoirs?|fresh ?water)\b/i],
   ["rivers", /\b(rivers?|streams?|creeks?)\b/i],
-  ["coast", /\b(coasts?|coastal|beaches|mudflats?|estuar\w+|shorelines?|seashore)\b/i],
-  ["sea", /\b(oceans?|pelagic|offshore|open sea|marine)\b/i],
-  ["scrub", /\b(scrub\w*|thickets?|shrub\w*|brush)\b/i],
+  ["coast", /\b(beaches|mudflats?|estuar\w+|shorelines?|seashores?|rocky shores?|coastal (waters|habitats?|areas?|lagoons?|wetlands?|plains|scrub|mangroves?))\b/i],
+  ["sea", /\b(pelagic|offshore|open (sea|ocean))\b/i],
+  ["scrub", /\b(scrub\w*|shrub\w*|brush\w*)\b/i],
   ["grassland", /\b(grass(lands?)?|meadows?|p[aá]ramo)\b/i]
 ];
 /* Where-seen words found in behavior text; they replace the family's default only for families whose default is a perch level. */
@@ -321,7 +321,15 @@ const SEEN_WORDS = [
   ["soaring", /\bsoar(s|ing)?\b/i],
   ["flying", /\b(aerial insectivore|hawking|catches insects in flight)\b/i]
 ];
-const FLEXIBLE_SEEN = new Set(["perched","canopy","foliage","understory","ground"]);
+/* Families whose members differ in where they're seen, so the bird's own text may override the family default. */
+const FLEXIBLE_SEEN = new Set(["Tyrant Flycatchers","Tanagers and Allies","Troupials and Allies","Cardinals and Allies","Cuckoos",
+  "Thrushes and Allies","New World Sparrows","Wrens","New World Warblers","Vireos, Shrike-Babblers, and Erpornis","Crows, Jays, and Magpies",
+  "Mockingbirds and Thrashers","Falcons and Caracaras","Finches, Euphonias, and Allies","Tityras and Allies","Cotingas","Typical Antbirds"]);
+/* Families whose habitat is set by what they are (water birds, aerial birds), not by passing mentions in the text. */
+const FIXED_HABITAT = new Set(["Kingfishers","Ducks, Geese, and Waterfowl","Grebes","Herons, Egrets, and Bitterns","Ibises and Spoonbills","Storks",
+  "Jacanas","Stilts and Avocets","Limpkin","Flamingos","Anhingas","Cormorants and Shags","Pelicans","Frigatebirds","Boobies and Gannets",
+  "Tropicbirds","Shearwaters and Petrels","Gulls, Terns, and Skimmers","Sandpipers and Allies","Osprey","Swifts","Swallows","Finfoots",
+  "Sunbittern","Dippers","Oilbird"]);
 
 const S = { trip:"tt", area:"all", mode:"mixed", style:"choice", tier:0.1, deck:null, species:[], srs:{}, cur:null, mediaCache:new Map(), noMedia:new Set(), session:{seen:0,got:0}, log:[], keys:null, last:[] };
 
@@ -655,12 +663,14 @@ function earliest(text, words){
 }
 function habitatClue(sp, f){
   const fam = FAMILY[sp.fam] || [];
+  if(FIXED_HABITAT.has(sp.fam) && fam[0]) return fam[0];
   return (f && f.hab && earliest(f.hab, HAB_WORDS)) || fam[0] || "—";
 }
 function seenClue(sp, f){
+  if(sp.fam === "Pigeons and Doves") return /dove/i.test(sp.name) ? "ground" : "perched";
   const fam = FAMILY[sp.fam] || [];
   const def = fam[1] || "perched";
-  if(!FLEXIBLE_SEEN.has(def)) return def;
+  if(!FLEXIBLE_SEEN.has(sp.fam)) return def;
   return (f && f.beh && earliest(f.beh, SEEN_WORDS)) || def;
 }
 const cap = s => s && s !== "—" ? s[0].toUpperCase() + s.slice(1) : s;
