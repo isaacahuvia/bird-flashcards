@@ -985,7 +985,8 @@ function distractors(sp){
   const others = (S.pool || S.species).filter(x => x.code !== sp.code);
   const fam = shuffle(others.filter(x => sp.fam && x.fam === sp.fam));
   const near = others.filter(x => !fam.includes(x)).sort((a, b) => Math.abs((a.ord||0) - (sp.ord||0)) - Math.abs((b.ord||0) - (sp.ord||0)));
-  const pool = [...fam.slice(0, 2), ...shuffle(near.slice(0, 8))];
+  /* when drilling chosen families, all three wrong answers come from the same family where possible */
+  const pool = [...fam.slice(0, chosenFams() ? 3 : 2), ...shuffle(near.slice(0, 8))];
   const out = []; for(const x of pool){ if(out.length === 3) break; if(!out.includes(x)) out.push(x); }
   for(const x of shuffle(others)){ if(out.length === 3) break; if(!out.includes(x)) out.push(x); }
   return out;
