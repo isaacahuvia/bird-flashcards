@@ -333,7 +333,7 @@ async function getJSON(url, tries = 3){
     try{ r = await fetch(url); }
     catch(e){ if(i < tries-1){ await sleep(800*(i+1)); continue; } const err = new Error("Network error reaching " + new URL(url).host + " (" + e.message + ")"); err.network = true; throw err; }
     if(r.ok) return r.json();
-    if((r.status === 429 || r.status >= 500) && i < tries-1){ await sleep(1500*(i+1)); continue; }
+    if((r.status === 429 || r.status >= 500) && i < tries-1){ await sleep((r.status === 429 ? 3000 : 1500) * (i+1)); continue; }
     const err = new Error("HTTP " + r.status + " from " + new URL(url).host); err.status = r.status; throw err;
   }
 }
@@ -375,7 +375,7 @@ async function buildDeck(trip, key){
       const R = resolved[c];
       const url = `${EBIRD}/data/obs/${encodeURIComponent(R.path)}/historic/${day.y}/${day.m}/${day.d}?cat=species&detail=simple&rank=create&maxResults=10000${R.r ? "&r=" + R.r : ""}&key=${encodeURIComponent(key)}`;
       try{
-        const obs = await getJSON(url); const seen = new Set();
+        const obs = await getJSON(url, 6); const seen = new Set();
         for(const o of obs){
           if(seen.has(o.speciesCode)) continue; seen.add(o.speciesCode);
           const t = per[c].tally.get(o.speciesCode) || { name:o.comName, sci:o.sciName, days:0 };
@@ -386,7 +386,7 @@ async function buildDeck(trip, key){
       done++; setStatus(`Reading eBird: ${done} of ${total} region-days`);
     }
   }
-  await Promise.all([worker(),worker(),worker(),worker()]);
+  await Promise.all([worker(),worker(),worker()]);
   if(failed > total/2) throw new Error(`${failed} of ${total} eBird requests failed. Try again.`);
   const species = new Map();
   for(const a of T.areas){
@@ -537,7 +537,8 @@ async function getMedia(sp, type){
 function splitSentences(text){
   let t = text.replace(/\[[^\]]*\]/g, "").replace(/\s*\([^()]*\)/g, "").replace(/\s+/g, " ");
   t = t.replace(/\b([A-Z])\. (?=[a-z])/g, "$1§ ").replace(/\b(e\.g|i\.e|c|ca|approx|St|Mt|sp|ssp|spp|var)\. /g, "$1§ ");
-  return (t.match(/[^.!?]+[.!?]+(?=\s|$)/g) || []).map(s => s.replace(/§/g, ".").trim())
+  const unquote = s => (s.match(/["“”]/g) || []).length % 2 ? s.replace(/^["“”']\s*/, "").replace(/\s*["“”]$/, "") : s;
+  return (t.match(/[^.!?]+[.!?]+(?=\s|$)/g) || []).map(s => unquote(s.replace(/§/g, ".").trim()))
     .filter(s => s.length > 30 && s.length < 400 && /^[A-Z"']/.test(s) && !/subspecies|nominate|taxonom|was described|binomial|genus/i.test(s));
 }
 function wikiSections(text){ const out = []; let cur = {h:"_lead", body:""}; for(const line of text.split("\n")){ const m = line.match(/^(=+)\s*(.+?)\s*=+$/); if(m){ out.push(cur); cur = {h:m[2].toLowerCase(), body:""}; } else cur.body += line + "\n"; } out.push(cur); return out; }
@@ -581,6 +582,7 @@ async function cachedURL(src){
 /* Only items whose files can be stored (iNaturalist open-data photos and xeno-canto audio both allow it). */
 const storable = it => /inaturalist-open-data\.s3\.amazonaws\.com|xeno-canto\.org/.test(it.src);
 const OFF_PHOTOS = 3, OFF_AUDIO = 2;
+const OFF_MAX_BYTES = { photo:1.5e6, audio:2.5e6 };
 let offAbort = null;
 
 function offKey(){ return "bf.offline." + S.trip; }
@@ -590,7 +592,7 @@ async function renderOffline(){
   const deck = cachedDeck();
   const n = deck ? deckSpecies(deck, $("#area").value, Number($("#tier").value)).length : 0;
   const modeTxt = { mixed:"photos and audio", photo:"photos", audio:"audio" }[$("#mode").value];
-  let txt = deck ? `This deck: ${n} birds, ${modeTxt}. Expect about ${fmtMB(n * ($("#mode").value === "photo" ? 0.9e6 : $("#mode").value === "audio" ? 3e6 : 3.9e6))}; use Wi-Fi.` : "Start the deck once while online, then download it.";
+  let txt = deck ? `This deck: ${n} birds, ${modeTxt}. Expect roughly ${fmtMB(n * ($("#mode").value === "photo" ? 1e6 : $("#mode").value === "audio" ? 1.2e6 : 2.2e6))}; use Wi-Fi.` : "Start the deck once while online, then download it.";
   if(saved) txt = `Saved on this device: ${saved.count} ${TRIPS[S.trip].label} birds (${fmtMB(saved.bytes)}), ${new Date(saved.date).toLocaleDateString()}. ` + txt;
   info.textContent = txt;
   $("#offDel").hidden = !saved; $("#offGet").disabled = !deck || !!offAbort || !canCache;
@@ -616,17 +618,21 @@ async function downloadDeck(){
       try{
         await getFacts(sp);
         for(const type of types){
-          const items = (await getMedia(sp, type)).filter(storable)
-            .sort((a, b) => type === "audio" ? (a.secs||99) - (b.secs||99) : 0)
-            .slice(0, type === "photo" ? OFF_PHOTOS : OFF_AUDIO);
-          for(const it of items){
-            if(signal.aborted) break;
-            if(await cache.match(it.src)) continue;
+          /* Candidates in order; audio shortest first. A file over the size cap is skipped while other candidates remain. */
+          const want = type === "photo" ? OFF_PHOTOS : OFF_AUDIO;
+          const cands = (await getMedia(sp, type)).filter(storable)
+            .sort((a, b) => type === "audio" ? (a.secs||99) - (b.secs||99) : 0).slice(0, want + 4);
+          let saved = 0;
+          for(let i = 0; i < cands.length && saved < want && !signal.aborted; i++){
+            const it = cands[i];
+            if(await cache.match(it.src)){ saved++; continue; }
             const r = await fetch(it.src, { signal });
             if(!r.ok) continue;
             const blob = await r.blob();
+            const left = cands.length - i - 1;
+            if(blob.size > OFF_MAX_BYTES[type] && left >= want - saved) continue;
             await cache.put(it.src, new Response(blob, { headers:{ "Content-Type": blob.type || (type === "photo" ? "image/jpeg" : "audio/mpeg") } }));
-            bytes += blob.size;
+            bytes += blob.size; saved++;
           }
         }
         codes.add(sp.code);
