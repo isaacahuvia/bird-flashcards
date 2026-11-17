@@ -301,8 +301,8 @@ const FAMILY = {
 /* Habitat words, in the order they're checked against the bird's habitat sentence; the earliest mention wins. */
 const HAB_WORDS = [
   ["mangrove", /\bmangroves?\b/i],
-  ["open", /\b(open (country|areas?|habitats?|woodlands?|land)|semi-open|pastures?|fields|savann?as?|agricultural)\b/i],
-  ["forest", /\b(rain ?forests?|cloud ?forests?|forests?|woodlands?|wooded)\b/i],
+  ["open", /\b(open (country|areas?|habitats?|woodlands?|land|grass\w*)|semi-open|pastures?|fields|savann?as?|agricultural)\b/i],
+  ["forest", /\b(rain ?forests?|cloud ?forests?|forest(s|ed)?|woodlands?|wooded)\b/i],
   ["edge", /\b(forest edges?|edges?|clearings?|second(ary)?[- ]growth)\b/i],
   ["towns", /\b(gardens?|parks?|urban|towns?|villages?|suburb\w*|cities|human habitation|cultivat\w*|plantations?)\b/i],
   ["wetland", /\b(marsh(es)?|swamps?|wetlands?|rice ?fields|lagoons?|reed ?beds?)\b/i],
@@ -321,10 +321,26 @@ const SEEN_WORDS = [
   ["soaring", /\bsoar(s|ing)?\b/i],
   ["flying", /\b(aerial insectivore|hawking|catches insects in flight)\b/i]
 ];
-/* Families whose members differ in where they're seen, so the bird's own text may override the family default. */
-const FLEXIBLE_SEEN = new Set(["Tyrant Flycatchers","Tanagers and Allies","Troupials and Allies","Cardinals and Allies","Cuckoos",
-  "Thrushes and Allies","New World Sparrows","Wrens","New World Warblers","Vireos, Shrike-Babblers, and Erpornis","Crows, Jays, and Magpies",
-  "Mockingbirds and Thrashers","Falcons and Caracaras","Finches, Euphonias, and Allies","Tityras and Allies","Cotingas","Typical Antbirds"]);
+/* Families whose members differ in where they're seen, and which words from the bird's own text may override the default. */
+const SEEN_OVERRIDES = {
+  "Tyrant Flycatchers":["canopy","understory"], "Tanagers and Allies":["canopy","understory"], "Troupials and Allies":["ground","canopy"],
+  "Cardinals and Allies":["canopy","understory"], "Cuckoos":["ground","understory"], "Thrushes and Allies":["ground","understory","canopy"],
+  "New World Sparrows":["ground","understory"], "Wrens":["understory","ground","canopy"], "Vireos, Shrike-Babblers, and Erpornis":["canopy","understory"],
+  "Crows, Jays, and Magpies":["canopy","ground"], "Mockingbirds and Thrashers":["ground"], "Falcons and Caracaras":["ground","soaring"],
+  "Finches, Euphonias, and Allies":["canopy","ground"], "Tityras and Allies":["canopy","understory"], "Cotingas":["canopy","understory"],
+  "Typical Antbirds":["understory","ground","canopy"]
+};
+/* Birds whose family is a poor guide, matched by name: [pattern, habitat or null, where seen or null]. */
+const NAME_RULES = [
+  [/Grassquit|Seedeater|Seed-Finch|Grass-Finch|Yellow-Finch/, "grassland", "grass"],
+  [/Chlorospingus|Brushfinch|Bush-Tanager/, "forest", "understory"],
+  [/Solitaire/, "forest", "perched"],
+  [/Oropendola|Cacique/, "forest", "canopy"],
+  [/Euphonia|Chlorophonia/, null, "canopy"],
+  [/Grackle|Blackbird|Cowbird|Meadowlark/, "open", "ground"],
+  [/Ground-Dove|Quail-Dove|Ground-Cuckoo|Ground-Sparrow|Waterthrush|Ovenbird/, null, "ground"]
+];
+const nameRule = sp => NAME_RULES.find(([re]) => re.test(sp.name)) || [];
 /* Families whose habitat is set by what they are (water birds, aerial birds), not by passing mentions in the text. */
 const FIXED_HABITAT = new Set(["Kingfishers","Ducks, Geese, and Waterfowl","Grebes","Herons, Egrets, and Bitterns","Ibises and Spoonbills","Storks",
   "Jacanas","Stilts and Avocets","Limpkin","Flamingos","Anhingas","Cormorants and Shags","Pelicans","Frigatebirds","Boobies and Gannets",
@@ -661,17 +677,26 @@ function earliest(text, words){
   for(const [w, re] of words){ const m = re.exec(text); if(m && (m.index < at || (m.index === at && m[0].length > len))){ at = m.index; len = m[0].length; best = w; } }
   return best;
 }
+/* Habitat: name rule, else fixed family habitat, else the earliest habitat word in the first main habitat sentence
+   (skipping sentences about nesting or secondary places), else the family default. */
+const SECONDARY = /\b(nest\w*|breed\w*|also|locally|occasionally|sometimes|rarely|vagrants?|migrat\w*|winter\w*)\b/i;
 function habitatClue(sp, f){
+  const rule = nameRule(sp); if(rule[1]) return rule[1];
   const fam = FAMILY[sp.fam] || [];
   if(FIXED_HABITAT.has(sp.fam) && fam[0]) return fam[0];
-  return (f && f.hab && earliest(f.hab, HAB_WORDS)) || fam[0] || "—";
+  if(f && f.hab){
+    for(const s of f.hab.split(/(?<=[.!?])\s+/)){ if(SECONDARY.test(s)) continue; const w = earliest(s, HAB_WORDS); if(w) return w; }
+  }
+  return fam[0] || "—";
 }
 function seenClue(sp, f){
+  const rule = nameRule(sp); if(rule[2]) return rule[2];
   if(sp.fam === "Pigeons and Doves") return /dove/i.test(sp.name) ? "ground" : "perched";
   const fam = FAMILY[sp.fam] || [];
   const def = fam[1] || "perched";
-  if(!FLEXIBLE_SEEN.has(sp.fam)) return def;
-  return (f && f.beh && earliest(f.beh, SEEN_WORDS)) || def;
+  const allowed = SEEN_OVERRIDES[sp.fam];
+  if(!allowed || !f || !f.beh) return def;
+  return earliest(f.beh, SEEN_WORDS.filter(([w]) => allowed.includes(w))) || def;
 }
 const cap = s => s && s !== "—" ? s[0].toUpperCase() + s.slice(1) : s;
 async function renderClues(card){
