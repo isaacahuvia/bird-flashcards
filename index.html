@@ -439,7 +439,7 @@ $("#start").addEventListener("click", async () => {
   }catch(e){ setStatus(e.message, true); }
   finally{ $("#start").disabled = false; }
 });
-$("#btnBack").addEventListener("click", () => { stopAudio(); S.cur = null; show("setup"); renderOffline(); });
+$("#btnBack").addEventListener("click", () => { stopAudio(); S.cur = null; if(S.reloadWhenBack){ location.reload(); return; } show("setup"); renderOffline(); });
 
 /* ---------- Media ---------- */
 /* Map an eBird species to an iNaturalist taxon id by scientific name, falling back to the English name. */
@@ -917,7 +917,18 @@ document.addEventListener("keydown", e => {
   $("#style").value = LS.get("bf.style","choice");
   renderTrips(); renderAreas(); renderDeckInfo(); renderOffline();
   show(S.keys ? "setup" : "lock");
-  if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(e => diag("service worker: " + e.message));
+  if("serviceWorker" in navigator && location.protocol === "https:"){
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js", { updateViaCache:"none" }).then(reg => reg.update()).catch(e => diag("service worker: " + e.message));
+    /* When a new version takes over, reload once so the screen shows it (but not in the middle of a card). */
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(!hadController || reloaded) return; reloaded = true;
+      if($("#study").hidden) location.reload(); else S.reloadWhenBack = true;
+    });
+  }
+  /* Phones keep home-screen apps open for days: check for a new version whenever the app comes back to the screen. */
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && navigator.serviceWorker) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });
 })();
 </script>
 </body>
