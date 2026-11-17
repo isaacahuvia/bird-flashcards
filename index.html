@@ -27,16 +27,18 @@
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --pad-top:max(14px, env(safe-area-inset-top)); --pad-bottom:max(14px, env(safe-area-inset-bottom));
+  /* top padding clears the phone's status bar (time, battery) with room to spare */
+  --pad-top:calc(env(safe-area-inset-top, 0px) + 20px); --pad-bottom:max(14px, env(safe-area-inset-bottom));
+  --warn:#9A6A12;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#0C151B; --panel:#131F27; --ink:#E6EEF2; --ink2:#93A5B0; --rule:#26363F; --accent:#4FB4D0; --accent-ink:#06222C; --good:#5FC08B; --miss:#E8836B; --stage:#060C10; --good-bg:#16301F; --miss-bg:#3A1D16; --bar:#22323C; --on-solid:#0C151B; color-scheme:dark}
+  :root{--bg:#0C151B; --panel:#131F27; --ink:#E6EEF2; --ink2:#93A5B0; --rule:#26363F; --accent:#4FB4D0; --accent-ink:#06222C; --good:#5FC08B; --miss:#E8836B; --stage:#060C10; --good-bg:#16301F; --miss-bg:#3A1D16; --bar:#22323C; --on-solid:#0C151B; --warn:#E0B060; color-scheme:dark}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-text-size-adjust:100%;
   padding:var(--pad-top) max(16px, env(safe-area-inset-right)) var(--pad-bottom) max(16px, env(safe-area-inset-left))}
-body.studying{--pad-top:max(8px, env(safe-area-inset-top)); --pad-bottom:max(10px, env(safe-area-inset-bottom));
+body.studying{--pad-top:calc(env(safe-area-inset-top, 0px) + 18px); --pad-bottom:max(10px, env(safe-area-inset-bottom));
   padding-left:max(12px, env(safe-area-inset-left)); padding-right:max(12px, env(safe-area-inset-right))}
 main{max-width:640px;margin:0 auto}
 label{display:block;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin-bottom:6px}
@@ -89,6 +91,9 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
 .offline-pill{font:500 10px var(--mono);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--rule);border-radius:999px;padding:2px 7px;color:var(--ink2);flex:none}
 .stage{position:relative;flex:1 1 auto;min-height:150px;background:var(--stage);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.stage img.fill{object-fit:cover}
+.sound{position:absolute;left:0;right:0;bottom:0;padding:18px 10px 8px;background:linear-gradient(transparent, rgba(6,12,16,.75));display:flex;justify-content:center}
+.sound audio{width:min(100%,420px);height:36px}
 .audio-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;width:100%}
 .audio-wrap audio{width:min(100%,420px)}
 .audio-label{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#9FB2BD}
@@ -111,6 +116,42 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
 .actions{flex:none;display:flex;gap:8px}
 .actions button{flex:1;padding:11px 12px}
 .keys{font:12px var(--mono);color:var(--ink2);margin:0}
+
+/* families picker */
+#famBox summary{font-size:15px;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:10px 12px;cursor:pointer;list-style-position:inside}
+.fam-tools{display:flex;gap:14px;margin:10px 2px 6px}
+.fam-list{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;max-height:320px;overflow:auto;padding:4px 2px}
+@media (max-width:480px){.fam-list{grid-template-columns:1fr}}
+.fam-list label{display:flex;align-items:center;gap:8px;font:14px/1.3 var(--body);text-transform:none;letter-spacing:0;color:var(--ink);margin:0;padding:5px 0;cursor:pointer}
+.fam-list input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
+.fam-list small{color:var(--ink2);font-size:12px;margin-left:auto;font-variant-numeric:tabular-nums}
+
+/* report card */
+#report,#rcBody{display:flex;flex-direction:column;gap:14px}
+#report h2{font:700 20px/1.2 var(--display);margin:0}
+.rc-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rc-sum div{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:6px 8px}
+.rc-sum b{display:block;font:600 20px/1.1 var(--body);font-variant-numeric:tabular-nums}
+.rc-sum span{font:500 10px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink2)}
+.rc-freq{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.rc-freq div{display:grid;grid-template-columns:76px 1fr 64px;gap:8px;align-items:center}
+.rc-freq .bar{height:8px;background:var(--bar);border-radius:4px;overflow:hidden;display:flex}
+.rc-freq .bar i{display:block;height:100%}
+.rc-freq em{font-style:normal;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums}
+.rc-fam{border-top:1px solid var(--rule);padding-top:8px}
+.rc-fam header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.rc-fam header b{font-size:15px}
+.rc-fam header span{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.rc-fam header button{margin-left:auto}
+.rc-row{display:grid;grid-template-columns:1fr 74px 78px;gap:8px;align-items:center;padding:4px 0;font-size:14px}
+.rc-row .f{font-size:12px;color:var(--ink2)}
+.pill{justify-self:end;font:500 11px var(--mono);border-radius:999px;padding:2px 8px;border:1px solid var(--rule);color:var(--ink2);white-space:nowrap}
+.pill.learned{color:var(--good);border-color:var(--good)}
+.pill.learning{color:var(--accent);border-color:var(--accent)}
+.pill.missed{color:var(--miss);border-color:var(--miss)}
+.c-new{background:var(--rule)} .c-missed{background:var(--miss)} .c-learning{background:var(--accent)} .c-learned{background:var(--good)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink2)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 @media (hover:none){.keys{display:none}}
 [hidden]{display:none!important}
 </style>
@@ -148,7 +189,15 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       </div>
       <div>
         <label for="mode">Cards</label>
-        <select id="mode"><option value="mixed">Photos and audio</option><option value="photo">Photos only</option><option value="audio">Audio only</option></select>
+        <select id="mode"><option value="mixed">Photos and audio</option><option value="both">Photo with sound</option><option value="photo">Photos only</option><option value="audio">Audio only</option></select>
+      </div>
+      <div class="wide">
+        <label for="famBox">Families</label>
+        <details id="famBox">
+          <summary id="famSum">All families</summary>
+          <div class="fam-tools"><button class="link" id="famAll" type="button">Select all</button><button class="link" id="famNone" type="button">Clear</button></div>
+          <div class="fam-list" id="famList"></div>
+        </details>
       </div>
       <div class="wide">
         <label for="style">Answer by</label>
@@ -158,6 +207,7 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
     <div>
       <div class="row">
         <button class="primary" id="start">Start</button>
+        <button id="btnReport">Report card</button>
         <span class="status" id="status"></span>
       </div>
       <p class="hint" id="deckInfo"></p>
@@ -178,7 +228,7 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       <summary>How it works</summary>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
         <p class="hint">The bird list comes from eBird reports for your trip dates across past years. Photos are iNaturalist featured photos and favorited research-grade photos at least 1000 px wide, without egg, nest or dead-bird photos. Audio is xeno-canto recordings graded A (B only where A is scarce), 3 seconds to 3 minutes, with at most one other bird in the background.</p>
-        <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days. Common, uncommon, rare: reported on 40%+, 10–40%, or under 10% of days in the area you picked. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
+        <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days (Tr Trinidad, To Tobago; Fo La Fortuna, Mo Monteverde, Do San Gerardo de Dota). Common, uncommon, rare: reported on 40%+, 10–40%, or under 10% of days in the area you picked. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
         <p class="hint"><b>Review.</b> New birds come in a few at a time, most common first. A bird you miss comes back after about 3 cards, then 6, then 15. Once you get it right 3 times running, it comes back a day later, then 3 days, a week, two weeks. Learned means right 4 times running, with the last at least a day after the others. A miss, or tapping Reveal, starts the bird over.</p>
         <p class="hint">On a phone, add this page to your home screen and use it from there; the home-screen app keeps its own downloads and progress.</p>
         <p class="hint"><button class="link" id="forget">Lock this device</button> (removes the saved keys; you'll need the password again).</p>
@@ -212,6 +262,17 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       <button class="good" id="btnGot" hidden>Got it</button>
     </div>
     <p class="keys" id="keyhelp"></p>
+  </section>
+
+  <!-- Report card -->
+  <section id="report" hidden>
+    <div class="topbar">
+      <button class="iconbtn" id="btnReportBack" aria-label="Back to decks" title="Back to decks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="where"><h2>Report card</h2><div id="rcWhere" style="font-size:13px;color:var(--ink2)"></div></div>
+    </div>
+    <div id="rcBody"></div>
   </section>
 </main>
 
@@ -252,7 +313,7 @@ const TRIPS = {
       { id:"tobago", label:"Tobago only", regions:["@tobago"] }
     ],
     clusters:{ trinidad:{ country:"TT", lat:10.45, lng:-61.25, km:50, exclude:"TT-TOB" } },
-    rangeAreas:[["trinidad","Trinidad"],["tobago","Tobago"]], rangeAll:"Both"
+    rangeAreas:[["trinidad","Tr"],["tobago","To"]]
   },
   cr: {
     rev:2, label:"Costa Rica", window:"Jan 29–Feb 11", days:span(1,29,2,11), years:range(2019,2026), xcCountry:"Costa Rica",
@@ -267,7 +328,7 @@ const TRIPS = {
       monteverde:{ country:"CR", lat:10.303, lng:-84.808, km:10 },
       dota:{ country:"CR", lat:9.552, lng:-83.807, km:10 }
     },
-    rangeAreas:[["fortuna","Fortuna"],["monteverde","Monteverde"],["dota","Dota"]], rangeAll:"All 3"
+    rangeAreas:[["fortuna","Fo"],["monteverde","Mo"],["dota","Do"]]
   }
 };
 
@@ -356,7 +417,7 @@ const xcKey = () => (S.keys && S.keys.xc) || "";
 const shuffle = a => { for(let i = a.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const online = () => navigator.onLine !== false;
-function show(id){ for(const s of ["lock","setup","study"]) $("#"+s).hidden = s !== id; document.body.classList.toggle("studying", id === "study"); window.scrollTo(0, 0); }
+function show(id){ for(const s of ["lock","setup","study","report"]) $("#"+s).hidden = s !== id; document.body.classList.toggle("studying", id === "study"); window.scrollTo(0, 0); }
 
 /* ---------- unlock ---------- */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -385,7 +446,7 @@ function renderTrips(){
   for(const [id, t] of Object.entries(TRIPS)){
     const b = document.createElement("button"); b.className = "trip"; b.setAttribute("aria-pressed", String(id === S.trip));
     b.innerHTML = `<b>${t.label}</b><span>${t.window}</span>`;
-    b.addEventListener("click", () => { S.trip = id; S.area = LS.get("bf.area."+id, "all"); LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderOffline(); });
+    b.addEventListener("click", () => { S.trip = id; S.area = LS.get("bf.area."+id, "all"); LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); });
     $("#trips").appendChild(b);
   }
 }
@@ -408,7 +469,48 @@ function readPicker(){
   S.area = $("#area").value; S.mode = $("#mode").value; S.style = $("#style").value; S.tier = Number($("#tier").value);
   LS.set("bf.mode", S.mode); LS.set("bf.style", S.style); LS.set("bf.tier", $("#tier").value); LS.set("bf.area."+S.trip, S.area);
 }
-for(const id of ["area","tier","mode","style"]) $("#"+id).addEventListener("change", () => { readPicker(); renderOffline(); });
+for(const id of ["area","tier","mode","style"]) $("#"+id).addEventListener("change", () => { readPicker(); renderFamilies(); renderOffline(); });
+
+/* ---------- families ---------- */
+/* The chosen families per trip; null means all. */
+const famKey = () => "bf.fams." + S.trip;
+const chosenFams = () => { const f = LS.get(famKey(), null); return Array.isArray(f) ? new Set(f) : null; };
+/* Birds for the current area and tier, before and after the family choice. */
+function poolFor(deck){ return deckSpecies(deck, $("#area").value, Number($("#tier").value)); }
+function selectedFor(deck){ const f = chosenFams(); const p = poolFor(deck); return f ? p.filter(sp => f.has(sp.fam || "")) : p; }
+function familiesIn(birds){
+  const m = new Map();
+  for(const sp of birds){ const k = sp.fam || "Other"; const e = m.get(k) || { fam:k, n:0, ord:sp.ord || 0 }; e.n++; e.ord = Math.min(e.ord, sp.ord || 0); m.set(k, e); }
+  return [...m.values()].sort((a, b) => a.ord - b.ord);
+}
+function renderFamilies(){
+  const deck = cachedDeck(), list = $("#famList"), sum = $("#famSum");
+  list.replaceChildren();
+  if(!deck){ sum.textContent = "All families"; const p = document.createElement("p"); p.className = "hint"; p.textContent = "Families can be chosen once the bird list is built (Start or Download)."; list.append(p); return; }
+  const fams = familiesIn(poolFor(deck)); const chosen = chosenFams();
+  for(const f of fams){
+    const lab = document.createElement("label"); const cb = document.createElement("input"); cb.type = "checkbox"; cb.value = f.fam;
+    cb.checked = !chosen || chosen.has(f.fam);
+    cb.addEventListener("change", () => saveFamilies());
+    const name = document.createElement("span"); name.textContent = f.fam;
+    const n = document.createElement("small"); n.textContent = f.n;
+    lab.append(cb, name, n); list.append(lab);
+  }
+  const on = fams.filter(f => !chosen || chosen.has(f.fam));
+  const n = on.reduce((t, f) => t + f.n, 0), birds = `${n} bird${n === 1 ? "" : "s"}`;
+  sum.textContent = !chosen || on.length === fams.length ? `All ${fams.length} families` : on.length === 0 ? "No families chosen" : on.length <= 2 ? `${on.map(f => f.fam).join(", ")} · ${birds}` : `${on.length} of ${fams.length} families · ${birds}`;
+}
+function saveFamilies(){
+  const boxes = [...$("#famList").querySelectorAll("input")];
+  const prev = chosenFams();
+  /* families not listed for this area/tier keep their previous state */
+  const keep = prev ? [...prev].filter(f => !boxes.some(b => b.value === f)) : [];
+  const on = boxes.filter(b => b.checked).map(b => b.value);
+  LS.set(famKey(), on.length === boxes.length && !keep.length ? null : [...keep, ...on]);
+  renderFamilies(); renderOffline();
+}
+$("#famAll").addEventListener("click", () => { LS.set(famKey(), null); renderFamilies(); renderOffline(); });
+$("#famNone").addEventListener("click", () => { LS.set(famKey(), []); renderFamilies(); renderOffline(); });
 
 /* ---------- eBird: in-season species ---------- */
 async function getJSON(url, tries = 3){
@@ -500,7 +602,7 @@ async function ensureDeck(say = setStatus){
   if(!deck){
     if(!online()) throw new Error("You're offline, and this trip's bird list hasn't been loaded on this device yet.");
     deck = await buildDeck(S.trip, ebirdKey(), say); LS.set("bf.deck."+S.trip, deck);
-    renderDeckInfo();
+    renderDeckInfo(); renderFamilies();
   }
   return deck;
 }
@@ -515,11 +617,14 @@ $("#start").addEventListener("click", async () => {
   try{
     const deck = await ensureDeck();
     S.deck = deck;
-    S.species = deckSpecies(deck, S.area, S.tier);
-    if(S.species.length < 4) throw new Error("Fewer than four birds match. Choose a broader setting under Include birds.");
+    S.pool = deckSpecies(deck, S.area, S.tier);
+    S.species = selectedFor(deck);
+    if(!S.species.length) throw new Error("No birds match. Choose more families or a broader setting under Include birds.");
+    if(S.pool.length < 4) throw new Error("Fewer than four birds match. Choose a broader setting under Include birds.");
     S.srs = LS.get("bf.srs."+S.trip, {}); S.mediaCache = new Map(); S.noMedia = new Set(); S.session = {seen:0,got:0}; S.cur = null; S.last = [];
     const T = TRIPS[S.trip];
-    $("#where").textContent = `${T.label} · ${T.areas.find(a => a.id === S.area).label}`;
+    const chosen = chosenFams();
+    $("#where").textContent = `${T.label} · ${T.areas.find(a => a.id === S.area).label}` + (chosen ? ` · ${chosen.size === 1 ? [...chosen][0] : chosen.size + " families"}` : "");
     $("#keyhelp").textContent = S.style === "choice" ? "Keys 1–4: pick. Space: reveal / next. R: replay." : "Space: reveal / next. ←: missed. →: got it. R: replay.";
     show("study"); setStatus(""); renderOffline();
     await nextCard();
@@ -667,8 +772,7 @@ function rangeClue(sp){
   const T = TRIPS[S.trip];
   const inArea = T.rangeAreas.filter(([id]) => pct(sp, id) >= 5);
   if(!inArea.length){ const best = T.rangeAreas.slice().sort((a, b) => pct(sp, b[0]) - pct(sp, a[0]))[0]; return pct(sp, best[0]) > 0 ? best[1] : "—"; }
-  if(inArea.length === T.rangeAreas.length) return T.rangeAll;
-  return inArea.map(a => a[1]).join(" · ");
+  return inArea.map(a => a[1]).join(inArea.length > 2 ? "+" : " + ");
 }
 function freqClue(sp){ const p = pct(sp, S.area); return p >= 40 ? "Common" : p >= 10 ? "Uncommon" : "Rare"; }
 function earliest(text, words){
@@ -728,18 +832,18 @@ let offAbort = null;
 function offKey(trip = S.trip){ return "bf.off2." + trip; }
 function offRecord(trip = S.trip){ return LS.get(offKey(trip), { photo:[], audio:[], bytes:0, date:0 }); }
 function fmtMB(b){ return b > 1e9 ? (b/1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b/1e6)) + " MB"; }
-function wantedTypes(mode){ return mode === "mixed" ? ["photo","audio"] : [mode]; }
+function wantedTypes(mode){ return mode === "mixed" || mode === "both" ? ["photo","audio"] : [mode]; }
 /* Birds in the current selection still missing something, per type. */
-function missingFor(deck, area, tier, mode){
+function missingFor(deck, mode){
   const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
-  const birds = deckSpecies(deck, area, tier);
+  const birds = selectedFor(deck);
   const out = { birds:birds.length, photo:0, audio:0, todo:[] };
   for(const sp of birds){ let need = false; for(const t of wantedTypes(mode)) if(!have[t].has(sp.code)){ out[t]++; need = true; } if(need) out.todo.push(sp); }
   return out;
 }
 function renderOffline(){
   const info = $("#offInfo"), btn = $("#offGet"), rec = offRecord();
-  const mode = $("#mode").value, area = $("#area").value, tier = Number($("#tier").value);
+  const mode = $("#mode").value;
   const has = rec.photo.length || rec.audio.length;
   $("#offDel").hidden = !has || !!offAbort;
   if(!canCache){ info.textContent = "This browser can't store files for offline use."; btn.hidden = true; return; }
@@ -749,10 +853,11 @@ function renderOffline(){
     info.textContent = "Saves photos, audio and clues for the birds selected above, about 1–2 MB per bird. The bird list is built first. Use Wi-Fi.";
     btn.hidden = false; btn.textContent = "Download this deck"; btn.disabled = !online(); return;
   }
-  const m = missingFor(deck, area, tier, mode);
+  const m = missingFor(deck, mode);
+  if(!m.birds){ info.textContent = "No birds selected. Choose at least one family."; btn.hidden = true; return; }
   const savedTxt = has ? ` ${fmtMB(rec.bytes)} saved on this device.` : "";
   if(!m.todo.length){
-    info.innerHTML = ""; const d = document.createElement("span"); d.className = "done"; d.textContent = `✓ Downloaded: all ${m.birds} birds in this deck.`;
+    info.innerHTML = ""; const d = document.createElement("span"); d.className = "done"; d.textContent = m.birds === 1 ? "✓ Downloaded: the 1 bird in this deck." : `✓ Downloaded: all ${m.birds} birds in this deck.`;
     info.append(d, savedTxt); btn.hidden = true; return;
   }
   const est = wantedTypes(mode).reduce((n, t) => n + m[t] * PER_BIRD[t], 0);
@@ -770,7 +875,7 @@ async function downloadDeck(){
   try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
   S.deck = deck;
   const types = wantedTypes(S.mode);
-  const todo = missingFor(deck, S.area, S.tier, S.mode).todo;
+  const todo = missingFor(deck, S.mode).todo;
   const cache = await caches.open(MEDIA_CACHE);
   const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
   let bytes = rec.bytes || 0, done = 0;
@@ -873,11 +978,11 @@ function record(sp, got){
   S.session.seen++; if(got) S.session.got++;
   renderStats();
 }
-function chooseType(){ return S.mode === "mixed" ? (Math.random() < .5 ? "photo" : "audio") : S.mode; }
+function chooseType(){ return S.mode === "mixed" ? (Math.random() < .5 ? "photo" : "audio") : S.mode === "both" ? "photo" : S.mode; }
 
 /* Three wrong options: same family first, then neighbours in taxonomic order, so the choices are plausible. */
 function distractors(sp){
-  const others = S.species.filter(x => x.code !== sp.code);
+  const others = (S.pool || S.species).filter(x => x.code !== sp.code);
   const fam = shuffle(others.filter(x => sp.fam && x.fam === sp.fam));
   const near = others.filter(x => !fam.includes(x)).sort((a, b) => Math.abs((a.ord||0) - (sp.ord||0)) - Math.abs((b.ord||0) - (sp.ord||0)));
   const pool = [...fam.slice(0, 2), ...shuffle(near.slice(0, 8))];
@@ -920,13 +1025,15 @@ async function nextCard(){
   for(const id of ["#cRange","#cHab","#cSeen","#cFreq"]) $(id).textContent = "";
   $("#offPill").hidden = online();
   $("#stage").replaceChildren(msg("Loading…"));
-  let sp, type, items = [];
+  let sp, type, items = [], sound = [];
   for(let tries = 0; tries < 10; tries++){
     sp = pickNext();
     if(!sp) break;
     type = chooseType();
     items = await playable(await getMedia(sp, type));
-    if(!items.length && S.mode === "mixed"){ type = type === "photo" ? "audio" : "photo"; items = await playable(await getMedia(sp, type)); }
+    if(!items.length && (S.mode === "mixed" || S.mode === "both")){ type = type === "photo" ? "audio" : "photo"; items = await playable(await getMedia(sp, type)); }
+    /* Photo with sound: the photo plus one of the bird's recordings, when it has any. */
+    sound = S.mode === "both" && type === "photo" ? await playable(await getMedia(sp, "audio")) : [];
     if(items.length) break;
     S.noMedia.add(sp.code);
     diag(`skipped ${sp.name}: no ${online() ? "high-quality" : "downloaded"} ${S.mode === "mixed" ? "photo or audio" : S.mode}`);
@@ -936,7 +1043,7 @@ async function nextCard(){
     renderStats(); return;
   }
   S.last.push(sp.code); if(S.last.length > 6) S.last.shift();
-  const card = S.cur = { sp, type, items, answered:false };
+  const card = S.cur = { sp, type, items, sound, answered:false };
   renderStage();
   renderClues(card);
   if(S.style === "choice") renderChoices();
@@ -959,7 +1066,9 @@ function renderStage(){
     if(type === "photo"){
       const img = new Image(); img.alt = "Bird to identify";
       img.onerror = () => { diag("photo failed: " + it.src); next(); };
+      img.onload = () => fitPhoto(img, stage);
       img.src = src; stage.replaceChildren(img);
+      if(card.sound && card.sound.length) addSound(card, stage);
     }else{
       const wrap = document.createElement("div"); wrap.className = "audio-wrap";
       const lab = document.createElement("div"); lab.className = "audio-label"; lab.textContent = "Listen and identify";
@@ -971,6 +1080,29 @@ function renderStage(){
     }
   };
   next();
+}
+
+/* Fill the box when that crops little: up to a quarter off the top and bottom, or a tenth off the sides; otherwise show the whole photo. */
+function fitPhoto(img, stage){
+  const box = stage.clientWidth / Math.max(1, stage.clientHeight), pic = img.naturalWidth / Math.max(1, img.naturalHeight);
+  const r = pic / box;
+  img.classList.toggle("fill", r < 1 ? 1 - r <= 0.25 : 1 - 1 / r <= 0.10);
+}
+/* A recording laid over the bottom of the photo, trying the bird's recordings in turn until one loads. */
+async function addSound(card, stage){
+  const order = shuffle(card.sound.slice());
+  const bar = document.createElement("div"); bar.className = "sound";
+  audioEl = document.createElement("audio"); audioEl.controls = true; audioEl.preload = "auto";
+  bar.append(audioEl); stage.append(bar);
+  const tryNext = async () => {
+    if(S.cur !== card) return;
+    const it = order.shift(); if(!it){ bar.remove(); return; }
+    const local = await cachedURL(it.src); if(local) objectURLs.push(local);
+    if(S.cur !== card) return;
+    audioEl.src = local || it.src; audioEl.play().catch(() => {});
+  };
+  audioEl.onerror = () => { diag("audio failed: " + audioEl.src); tryNext(); };
+  tryNext();
 }
 
 function renderChoices(){
@@ -1024,13 +1156,70 @@ function renderStats(){
   $("#stats").innerHTML = `Learned <b>${learned}</b>/${S.species.length} · Learning <b>${learning}</b> · New <b>${fresh}</b>${due ? ` · Due <b>${due}</b>` : ""} · Today <b>${S.session.got}/${S.session.seen}</b>`;
 }
 
+/* ---------- Report card ----------
+   Every bird in the chosen area and tier (all families), grouped by family in taxonomic order, with how often it's
+   reported and how well you know it. Mastery: New (not yet seen), Missed (last answer wrong), Learning, Learned (box 4+). */
+const MASTERY = [["learned","Learned"],["learning","Learning"],["missed","Missed"],["new","New"]];
+function mastery(s){ if(!s) return "new"; if(s.box === 0) return "missed"; return s.box >= 4 ? "learned" : "learning"; }
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+function renderReport(){
+  const body = $("#rcBody"); body.replaceChildren();
+  const T = TRIPS[S.trip], area = $("#area").value, tier = Number($("#tier").value);
+  $("#rcWhere").textContent = `${T.label} · ${T.areas.find(a => a.id === area).label} · ${$("#tier").selectedOptions[0].textContent.replace(/\s*\(.*\)/, "")}`;
+  const deck = cachedDeck();
+  if(!deck){ body.append(el("p", "hint", "The bird list hasn't been built on this device yet. Press Start or Download first.")); return; }
+  S.deck = deck; S.area = area;
+  const srs = LS.get("bf.srs." + S.trip, {});
+  const birds = deckSpecies(deck, area, tier);
+  const m = sp => mastery(srs[sp.code]);
+  const count = list => { const c = { learned:0, learning:0, missed:0, new:0 }; for(const sp of list) c[m(sp)]++; return c; };
+
+  const all = count(birds);
+  const sum = el("div", "rc-sum");
+  for(const [k, label] of MASTERY){ const d = el("div"); d.append(el("b", null, all[k]), el("span", null, label)); sum.append(d); }
+  body.append(sum);
+
+  const freq = el("div", "rc-freq");
+  for(const label of ["Common","Uncommon","Rare"]){
+    const list = birds.filter(sp => freqClue(sp) === label); if(!list.length) continue;
+    const c = count(list); const row = el("div"); const bar = el("div", "bar");
+    for(const [k] of MASTERY){ if(!c[k]) continue; const i = el("i", "c-" + k); i.style.width = (100 * c[k] / list.length) + "%"; bar.append(i); }
+    row.append(el("span", null, label), bar, el("em", null, `${c.learned}/${list.length}`));
+    freq.append(row);
+  }
+  const legend = el("div", "legend");
+  for(const [k, label] of MASTERY){ const s = el("span"); s.append(el("i", "c-" + k), label); legend.append(s); }
+  body.append(freq, legend);
+
+  for(const f of familiesIn(birds)){
+    const list = birds.filter(sp => (sp.fam || "Other") === f.fam).sort((a, b) => (b.d[area] || 0) - (a.d[area] || 0));
+    const c = count(list);
+    const sec = el("section", "rc-fam"); const head = el("header");
+    const practice = el("button", "link", "Practice");
+    practice.addEventListener("click", () => { LS.set(famKey(), [f.fam]); show("setup"); renderFamilies(); renderOffline(); setStatus(`Families set to ${f.fam}. Press Start.`); });
+    head.append(el("b", null, f.fam), el("span", null, `${c.learned}/${list.length} learned`), practice);
+    sec.append(head);
+    for(const sp of list){
+      const s = srs[sp.code], k = m(sp);
+      const row = el("div", "rc-row");
+      const pill = el("span", "pill " + k, MASTERY.find(x => x[0] === k)[1]);
+      if(s) pill.title = `${s.seen - s.lapses} right of ${s.seen}`;
+      row.append(el("span", null, sp.name), el("span", "f", freqClue(sp)), pill);
+      sec.append(row);
+    }
+    body.append(sec);
+  }
+}
+$("#btnReport").addEventListener("click", () => { readPicker(); renderReport(); show("report"); });
+$("#btnReportBack").addEventListener("click", () => show("setup"));
+
 $("#btnReveal").addEventListener("click", revealNow);
 $("#btnGot").addEventListener("click", () => grade(true));
 $("#btnMiss").addEventListener("click", () => grade(false));
 $("#btnNext").addEventListener("click", () => nextCard());
 document.addEventListener("keydown", e => {
   if($("#study").hidden || e.target.matches("input,select,textarea") || !S.cur) return;
-  if((e.key === "r" || e.key === "R") && audioEl && S.cur.type === "audio"){ audioEl.currentTime = 0; audioEl.play().catch(() => {}); return; }
+  if((e.key === "r" || e.key === "R") && audioEl && (S.cur.type === "audio" || (S.cur.sound && S.cur.sound.length))){ audioEl.currentTime = 0; audioEl.play().catch(() => {}); return; }
   if(e.key === "Escape"){ $("#btnBack").click(); return; }
   if(S.style === "choice"){
     if(/^[1-4]$/.test(e.key) && !S.cur.answered && S.cur.opts) choose(S.cur.opts[Number(e.key)-1]);
@@ -1050,7 +1239,7 @@ document.addEventListener("keydown", e => {
   $("#tier").value = LS.get("bf.tier","0.10");
   $("#mode").value = LS.get("bf.mode","mixed");
   $("#style").value = LS.get("bf.style","choice");
-  renderTrips(); renderAreas(); renderDeckInfo(); renderOffline();
+  renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline();
   show(S.keys ? "setup" : "lock");
   if("serviceWorker" in navigator && location.protocol === "https:"){
     const hadController = !!navigator.serviceWorker.controller;
