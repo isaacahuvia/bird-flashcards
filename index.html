@@ -231,21 +231,35 @@ const LOCKED_KEYS = {"salt":"l3ULeA25piC0gQVcQWpbDg==","iv":"dMI271CF/kRyiz/L","
 /* The two trips. Each area lists the eBird regions whose observations make up its species pool.
    Observations are read for the same calendar days in each past year; that gives the in-season list.
    Photos and audio are chosen by quality, not by date. */
+/* Calendar days from (m0, d0) to (m1, d1), inclusive, within one year. */
+function span(m0, d0, m1, d1){
+  const out = []; const end = new Date(2001, m1-1, d1);
+  for(let t = new Date(2001, m0-1, d0); t <= end; t.setDate(t.getDate()+1)) out.push([t.getMonth()+1, t.getDate()]);
+  return out;
+}
+/* Regions: an eBird region code, "@tobago", or a hotspot cluster { country, lat, lng, km }:
+   every eBird hotspot within km of the point (up to 50, busiest first), read together. */
 const TRIPS = {
   tt: {
-    label:"Trinidad & Tobago", window:"Dec 14–21", month:12, d0:14, d1:21, years:range(2018,2025), xcCountry:"Trinidad & Tobago",
+    rev:1, label:"Trinidad & Tobago", window:"Dec 14–21", days:span(12,14,12,21), years:range(2018,2025), xcCountry:"Trinidad & Tobago",
     areas:[
       { id:"all", label:"Both islands", regions:["TT"] },
       { id:"tobago", label:"Tobago only", regions:["@tobago"] }
     ]
   },
   cr: {
-    label:"Costa Rica", window:"Feb 2–8", month:2, d0:2, d1:8, years:range(2019,2026), xcCountry:"Costa Rica",
+    rev:2, label:"Costa Rica", window:"Jan 29–Feb 11", days:span(1,29,2,11), years:range(2019,2026), xcCountry:"Costa Rica",
     areas:[
-      { id:"all", label:"La Fortuna and Monteverde", regions:["CR-A","CR-P"] },
-      { id:"fortuna", label:"La Fortuna (Alajuela province)", regions:["CR-A"] },
-      { id:"monteverde", label:"Monteverde (Puntarenas province)", regions:["CR-P"] }
-    ]
+      { id:"all", label:"All three areas", regions:["fortuna","monteverde","dota"] },
+      { id:"fortuna", label:"La Fortuna and Arenal", regions:["fortuna"] },
+      { id:"monteverde", label:"Monteverde", regions:["monteverde"] },
+      { id:"dota", label:"San Gerardo de Dota", regions:["dota"] }
+    ],
+    clusters:{
+      fortuna:{ country:"CR", lat:10.471, lng:-84.645, km:12 },
+      monteverde:{ country:"CR", lat:10.303, lng:-84.808, km:10 },
+      dota:{ country:"CR", lat:9.552, lng:-83.807, km:10 }
+    }
   }
 };
 
@@ -296,7 +310,8 @@ function renderAreas(){
   for(const a of TRIPS[S.trip].areas){ const o = document.createElement("option"); o.value = a.id; o.textContent = a.label; sel.appendChild(o); }
   sel.value = S.area;
 }
-function cachedDeck(trip = S.trip){ const d = LS.get("bf.deck."+trip, null); return d && d.v === DECK_VERSION ? d : null; }
+/* A saved bird list is reused only if it was built for the trip's current dates and areas (rev). */
+function cachedDeck(trip = S.trip){ const d = LS.get("bf.deck."+trip, null); return d && d.v === DECK_VERSION && (d.rev || 1) === TRIPS[trip].rev ? d : null; }
 function renderDeckInfo(){
   const d = cachedDeck(), el = $("#deckInfo");
   if(!d){ el.textContent = `The first start reads ${TRIPS[S.trip].years.length} years of eBird reports for these dates (a minute or two) and saves the list on this device.`; return; }
@@ -322,12 +337,22 @@ async function getJSON(url, tries = 3){
     const err = new Error("HTTP " + r.status + " from " + new URL(url).host); err.status = r.status; throw err;
   }
 }
-async function resolveRegion(code, key){
-  if(code !== "@tobago") return code;
+/* Returns { path, r }: the region in the URL path and, for hotspot clusters, the hotspot list for the r= parameter. */
+async function resolveRegion(trip, code, key){
+  const cl = TRIPS[trip].clusters && TRIPS[trip].clusters[code];
+  if(cl){
+    const hs = await getJSON(`${EBIRD}/ref/hotspot/geo?lat=${cl.lat}&lng=${cl.lng}&dist=${cl.km}&fmt=json&key=${encodeURIComponent(key)}`);
+    hs.sort((a, b) => (b.numSpeciesAllTime || 0) - (a.numSpeciesAllTime || 0));
+    const ids = hs.slice(0, 50).map(h => h.locId);
+    if(!ids.length) throw new Error(`No eBird hotspots found near ${code}.`);
+    diag(`${code}: ${ids.length} hotspots within ${cl.km} km`);
+    return { path:cl.country, r:ids.join(","), label:code };
+  }
+  if(code !== "@tobago") return { path:code, r:"", label:code };
   const list = await getJSON(`${EBIRD}/ref/region/list/subnational1/TT?key=${encodeURIComponent(key)}`);
   const t = list.find(x => /tobago/i.test(x.name));
   if(!t) throw new Error("Could not find Tobago among eBird's regions for Trinidad and Tobago.");
-  return t.code;
+  return { path:t.code, r:"", label:t.code };
 }
 async function buildDeck(trip, key){
   const T = TRIPS[trip];
@@ -339,15 +364,16 @@ async function buildDeck(trip, key){
     throw new Error("Could not reach eBird: " + e.message);
   }
   const regionCodes = [...new Set(T.areas.flatMap(a => a.regions))];
-  const resolved = {}; for(const c of regionCodes) resolved[c] = await resolveRegion(c, key);
-  const days = []; for(const y of T.years) for(let d = T.d0; d <= T.d1; d++) days.push({y, m:T.month, d});
+  const resolved = {}; for(const c of regionCodes){ setStatus("Finding birding hotspots…"); resolved[c] = await resolveRegion(trip, c, key); }
+  const days = []; for(const y of T.years) for(const [m, d] of T.days) days.push({y, m, d});
   const per = {}; for(const c of regionCodes) per[c] = { ok:0, tally:new Map() };
   const queue = []; for(const c of regionCodes) for(const day of days) queue.push({c, day});
   const total = queue.length; let done = 0, failed = 0;
   async function worker(){
     while(queue.length){
       const { c, day } = queue.shift();
-      const url = `${EBIRD}/data/obs/${encodeURIComponent(resolved[c])}/historic/${day.y}/${day.m}/${day.d}?cat=species&detail=simple&rank=create&maxResults=10000&key=${encodeURIComponent(key)}`;
+      const R = resolved[c];
+      const url = `${EBIRD}/data/obs/${encodeURIComponent(R.path)}/historic/${day.y}/${day.m}/${day.d}?cat=species&detail=simple&rank=create&maxResults=10000${R.r ? "&r=" + R.r : ""}&key=${encodeURIComponent(key)}`;
       try{
         const obs = await getJSON(url); const seen = new Set();
         for(const o of obs){
@@ -356,7 +382,7 @@ async function buildDeck(trip, key){
           t.days++; per[c].tally.set(o.speciesCode, t);
         }
         per[c].ok++;
-      }catch(e){ failed++; diag(`eBird ${resolved[c]} ${day.y}-${day.m}-${day.d}: ${e.message}`); }
+      }catch(e){ failed++; diag(`eBird ${resolved[c].label} ${day.y}-${day.m}-${day.d}: ${e.message}`); }
       done++; setStatus(`Reading eBird: ${done} of ${total} region-days`);
     }
   }
@@ -380,7 +406,7 @@ async function buildDeck(trip, key){
     }catch(e){ diag("taxonomy: " + e.message); }
   }
   const totals = {}; for(const a of T.areas) totals[a.id] = a.regions.reduce((n, c) => n + per[c].ok, 0);
-  return { v:DECK_VERSION, built:Date.now(), totals, species:[...species.values()].sort((a, b) => (a.ord||0) - (b.ord||0)) };
+  return { v:DECK_VERSION, rev:T.rev, built:Date.now(), totals, species:[...species.values()].sort((a, b) => (a.ord||0) - (b.ord||0)) };
 }
 
 async function ensureDeck(){

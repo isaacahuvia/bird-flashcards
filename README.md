@@ -1,8 +1,8 @@
 # Bird Flashcards
 
-Flashcards for learning the birds of a trip: Trinidad & Tobago (Dec 14–21) and Costa Rica (Feb 2–8).
+Flashcards for learning the birds of a trip: Trinidad & Tobago (Dec 14–21) and Costa Rica (Jan 29–Feb 11: La Fortuna/Arenal, Monteverde, San Gerardo de Dota).
 
-- **Bird list:** eBird reports for the trip dates across past years, with how often each bird is reported.
+- **Bird list:** eBird reports for the trip dates across past years, with how often each bird is reported. Trinidad & Tobago uses the whole country (and Tobago on its own); each Costa Rica area uses every eBird hotspot within 10–12 km of the town.
 - **Photos:** iNaturalist featured photos and favorited research-grade photos, at least 1000 px.
 - **Audio:** xeno-canto recordings graded A (B where A is scarce), 3 s to 3 min, at most one other bird in the background.
 - **Range, habitat and behavior:** sentences from each bird's Wikipedia article.
