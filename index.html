@@ -16,9 +16,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Layout: one narrow column. Unlock screen once per device, then the deck picker, then one large card. */
+/* Layout: one narrow column. Unlock once per device, then the deck picker, then a card sized to fill one phone screen
+   (photo or recording on top, the four clues under it, then the answer line, choices and one action button). */
 :root{
   --bg:#EAEFF2; --panel:#F8FAFB; --ink:#10202B; --ink2:#51636E; --rule:#C7D2D9;
   --accent:#0B6E8A; --accent-ink:#FFFFFF; --good:#2D7A4F; --miss:#A8452F; --stage:#0E1A22;
@@ -26,16 +27,18 @@
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --pad-top:max(14px, env(safe-area-inset-top)); --pad-bottom:max(14px, env(safe-area-inset-bottom));
 }
 @media (prefers-color-scheme: dark){
   :root{--bg:#0C151B; --panel:#131F27; --ink:#E6EEF2; --ink2:#93A5B0; --rule:#26363F; --accent:#4FB4D0; --accent-ink:#06222C; --good:#5FC08B; --miss:#E8836B; --stage:#060C10; --good-bg:#16301F; --miss-bg:#3A1D16; --bar:#22323C; --on-solid:#0C151B; color-scheme:dark}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);
-  padding:max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  -webkit-text-size-adjust:100%}
-main{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-text-size-adjust:100%;
+  padding:var(--pad-top) max(16px, env(safe-area-inset-right)) var(--pad-bottom) max(16px, env(safe-area-inset-left))}
+body.studying{--pad-top:max(8px, env(safe-area-inset-top)); --pad-bottom:max(10px, env(safe-area-inset-bottom));
+  padding-left:max(12px, env(safe-area-inset-left)); padding-right:max(12px, env(safe-area-inset-right))}
+main{max-width:640px;margin:0 auto}
 label{display:block;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin-bottom:6px}
 input,select{width:100%;font:16px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--rule);padding:10px 12px;border-radius:6px}
 input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -43,8 +46,8 @@ input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visi
 .grid .wide{grid-column:1/-1}
 @media (max-width:480px){.grid{grid-template-columns:1fr}}
 .hint{font-size:13px;color:var(--ink2);margin:6px 0 0}
-.hint a,.info a,.credit a{color:var(--accent)}
-button{font:500 15px var(--body);cursor:pointer;border-radius:6px;padding:11px 18px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);touch-action:manipulation}
+.hint a{color:var(--accent)}
+button{font:500 15px var(--body);cursor:pointer;border-radius:6px;padding:11px 18px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.good{background:var(--good);border-color:var(--good);color:var(--on-solid)}
 button.miss{background:var(--miss);border-color:var(--miss);color:var(--on-solid)}
@@ -55,12 +58,16 @@ button:disabled{opacity:.5;cursor:default}
 .err{color:var(--miss)}
 .section-label{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin:0}
 .box{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.done{color:var(--good);font-weight:500}
+details{font-size:13px;color:var(--ink2)}
+details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);background:var(--panel);border:1px solid var(--rule);padding:10px;border-radius:6px;max-height:220px;overflow:auto}
 
 /* unlock */
 .lock{max-width:360px;margin:12vh auto 0;display:flex;flex-direction:column;gap:14px}
 .lock h2{font:700 24px/1.15 var(--display);margin:0}
 
 /* deck picker */
+#setup{display:flex;flex-direction:column;gap:16px}
 .trips{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .trip{text-align:left;padding:14px 16px;display:flex;flex-direction:column;gap:2px;border-width:1.5px}
 .trip b{font:700 18px/1.2 var(--display)}
@@ -69,44 +76,41 @@ button:disabled{opacity:.5;cursor:default}
 .progress{height:6px;background:var(--bar);border-radius:3px;overflow:hidden}
 .progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
 
-/* study */
-.topbar{display:flex;align-items:center;gap:10px;min-height:40px}
-.iconbtn{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;flex:none}
-.iconbtn svg{width:20px;height:20px}
-.topbar .where{font-size:14px;color:var(--ink2);line-height:1.3;min-width:0}
-.offline-pill{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--rule);border-radius:999px;padding:2px 8px;color:var(--ink2);margin-left:auto;flex:none}
-.stats{display:flex;gap:6px 16px;flex-wrap:wrap;font:13px var(--mono);color:var(--ink2);border-block:1px solid var(--rule);padding:8px 0}
-.stats b{color:var(--ink);font-weight:500}
-.stage{background:var(--stage);border-radius:8px;min-height:280px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.stage img{display:block;max-width:100%;max-height:min(58vh,520px);object-fit:contain}
-.audio-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 16px;width:100%}
+/* study: fills exactly one screen */
+.study{display:flex;flex-direction:column;gap:8px;height:calc(100vh - var(--pad-top) - var(--pad-bottom));height:calc(100dvh - var(--pad-top) - var(--pad-bottom));min-height:480px}
+.topbar{display:flex;align-items:center;gap:10px;flex:none}
+.iconbtn{width:36px;height:36px;padding:0;display:grid;place-items:center;border-radius:50%;flex:none}
+.iconbtn svg{width:18px;height:18px}
+.where{min-width:0;flex:1;line-height:1.25}
+.where div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#where{font-size:13px;color:var(--ink)}
+#stats{font:12px var(--body);color:var(--ink2);font-variant-numeric:tabular-nums}
+#stats b{color:var(--ink);font-weight:500}
+.offline-pill{font:500 10px var(--mono);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--rule);border-radius:999px;padding:2px 7px;color:var(--ink2);flex:none}
+.stage{position:relative;flex:1 1 auto;min-height:150px;background:var(--stage);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.audio-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;width:100%}
 .audio-wrap audio{width:min(100%,420px)}
-.audio-wrap img{max-height:120px;width:min(100%,420px);object-fit:fill;border-radius:4px;opacity:.9}
-.audio-label{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#9FB2BD}
-.stage .msg{color:#B8C7D0;padding:24px;text-align:center;font-size:14px;max-width:440px}
+.audio-label{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#9FB2BD}
+.stage .msg{color:#B8C7D0;padding:20px;text-align:center;font-size:14px;max-width:440px}
 .stage .msg a{color:#7CCBE2}
-.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media (max-width:480px){.choices{grid-template-columns:1fr}}
-.choices button{text-align:left;font-size:15px;padding:12px 14px}
+.clues{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.clue{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:4px 6px;min-width:0}
+.clue span{display:block;font:500 9.5px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);white-space:nowrap;overflow:hidden}
+.clue b{display:block;font:500 13px/1.2 var(--body);letter-spacing:-.01em;color:var(--ink);overflow-wrap:normal;word-break:keep-all;min-height:1.2em}
+.answer{flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:10px;min-height:20px;font-size:14px;line-height:20px}
+#verdict{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#verdict.ok{color:var(--good)} #verdict.no{color:var(--miss)}
+#family{color:var(--ink2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.choices{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.choices button{text-align:left;font-size:14px;line-height:1.2;padding:6px 10px;min-height:46px}
 .choices button:disabled{opacity:1;cursor:default;color:var(--ink2)}
 .choices button.right,.choices button.wrong{color:var(--ink)}
 .choices button.right{background:var(--good-bg);border-color:var(--good)}
 .choices button.wrong{background:var(--miss-bg);border-color:var(--miss)}
-.reveal{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
-.verdict{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em}
-.verdict.ok{color:var(--good)} .verdict.no{color:var(--miss)}
-.name{font:700 26px/1.15 var(--display)}
-.sci{font:italic 400 15px var(--body);color:var(--ink2)}
-.info{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:10px 0 2px;font-size:14.5px;line-height:1.45}
-.info dt{font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);padding-top:2px}
-.info dd{margin:0;min-width:0}
-@media (max-width:420px){.info{grid-template-columns:1fr;gap:0}.info dd{margin-bottom:8px}}
-.credit{font:12px var(--mono);color:var(--ink2);margin-top:6px}
-.actions{display:flex;gap:10px;flex-wrap:wrap}
-.actions button{flex:1 1 120px}
-.keys{font:12px var(--mono);color:var(--ink2)}
-details{font-size:13px;color:var(--ink2)}
-details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);background:var(--panel);border:1px solid var(--rule);padding:10px;border-radius:6px;max-height:220px;overflow:auto}
+.actions{flex:none;display:flex;gap:8px}
+.actions button{flex:1;padding:11px 12px}
+.keys{font:12px var(--mono);color:var(--ink2);margin:0}
 @media (hover:none){.keys{display:none}}
 [hidden]{display:none!important}
 </style>
@@ -128,7 +132,7 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
   <!-- Deck picker -->
   <section id="setup" hidden>
     <div class="trips" id="trips"></div>
-    <div class="grid" style="margin-top:16px">
+    <div class="grid">
       <div class="wide">
         <label for="area">Area</label>
         <select id="area"></select>
@@ -151,13 +155,15 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
         <select id="style"><option value="choice">Picking from four names</option><option value="recall">Recalling the name</option></select>
       </div>
     </div>
-    <div class="row" style="margin-top:16px">
-      <button class="primary" id="start">Start</button>
-      <span class="status" id="status"></span>
+    <div>
+      <div class="row">
+        <button class="primary" id="start">Start</button>
+        <span class="status" id="status"></span>
+      </div>
+      <p class="hint" id="deckInfo"></p>
     </div>
-    <p class="hint" id="deckInfo"></p>
 
-    <div class="box" style="margin-top:20px">
+    <div class="box">
       <p class="section-label">Offline</p>
       <p class="hint" id="offInfo" style="margin:0"></p>
       <div class="progress" id="offBar" hidden><i></i></div>
@@ -168,44 +174,44 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       </div>
     </div>
 
-    <details style="margin-top:16px">
+    <details>
       <summary>How it works</summary>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-        <p class="hint">The bird list comes from eBird reports for your trip dates across past years. Photos are iNaturalist featured photos and favorited research-grade photos at least 1000 px wide. Audio is xeno-canto recordings graded A (B only where A is scarce), 3 seconds to 3 minutes long, with at most one other bird in the background. Birds with nothing that meets those bars are skipped. Range, habitat and behavior come from each bird's Wikipedia article.</p>
-        <p class="hint">Review: new birds come in a few at a time, most common first. A bird you miss comes back after about 3 cards, then after 6, then 15. Once you get it right 3 times running, it comes back a day later, then 3 days, a week, two weeks. <b>Learned</b> means right 4 times running, with the last at least a day after the others. A miss, or tapping Reveal, starts the bird over.</p>
-        <p class="hint">On a phone, add this page to your home screen, then download decks from there; the home-screen app keeps its own downloads and progress.</p>
+        <p class="hint">The bird list comes from eBird reports for your trip dates across past years. Photos are iNaturalist featured photos and favorited research-grade photos at least 1000 px wide, without egg, nest or dead-bird photos. Audio is xeno-canto recordings graded A (B only where A is scarce), 3 seconds to 3 minutes, with at most one other bird in the background.</p>
+        <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days. Common, uncommon, rare: reported on 40%+, 10–40%, or under 10% of days in the area you picked. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
+        <p class="hint"><b>Review.</b> New birds come in a few at a time, most common first. A bird you miss comes back after about 3 cards, then 6, then 15. Once you get it right 3 times running, it comes back a day later, then 3 days, a week, two weeks. Learned means right 4 times running, with the last at least a day after the others. A miss, or tapping Reveal, starts the bird over.</p>
+        <p class="hint">On a phone, add this page to your home screen and use it from there; the home-screen app keeps its own downloads and progress.</p>
         <p class="hint"><button class="link" id="forget">Lock this device</button> (removes the saved keys; you'll need the password again).</p>
       </div>
     </details>
+    <details id="diag"><summary>Diagnostics</summary><pre id="diagText"></pre></details>
   </section>
 
-  <!-- Study -->
-  <section id="study" hidden>
+  <!-- Study: one screen -->
+  <section id="study" class="study" hidden>
     <div class="topbar">
       <button class="iconbtn" id="btnBack" aria-label="Back to decks" title="Back to decks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
-      <div class="where" id="where"></div>
+      <div class="where"><div id="where"></div><div id="stats"></div></div>
       <span class="offline-pill" id="offPill" hidden>Offline</span>
     </div>
-    <div class="stats" id="stats" style="margin-top:8px"></div>
-    <div class="stage" id="stage" style="margin-top:14px"></div>
-    <div class="reveal" id="reveal" hidden style="margin-top:12px">
-      <div class="verdict" id="verdict"></div>
-      <div class="name" id="rName"></div>
-      <div class="sci" id="rSci"></div>
-      <dl class="info" id="rInfo"></dl>
-      <div class="credit" id="rCredit"></div>
+    <div class="stage" id="stage"></div>
+    <div class="clues">
+      <div class="clue"><span>Range</span><b id="cRange"></b></div>
+      <div class="clue"><span>Habitat</span><b id="cHab"></b></div>
+      <div class="clue"><span>Seen</span><b id="cSeen"></b></div>
+      <div class="clue"><span>How often</span><b id="cFreq"></b></div>
     </div>
-    <div class="choices" id="choices" style="margin-top:12px" hidden></div>
-    <div class="actions" style="margin-top:12px">
+    <div class="answer"><span id="verdict"></span><span id="family"></span></div>
+    <div class="choices" id="choices" hidden></div>
+    <div class="actions">
       <button id="btnReveal">Reveal</button>
+      <button class="primary" id="btnNext" hidden>Next</button>
       <button class="miss" id="btnMiss" hidden>Missed it</button>
       <button class="good" id="btnGot" hidden>Got it</button>
-      <button class="primary" id="btnNext" hidden>Next</button>
     </div>
     <p class="keys" id="keyhelp"></p>
-    <details id="diag"><summary>Diagnostics</summary><pre id="diagText"></pre></details>
   </section>
 </main>
 
@@ -221,31 +227,32 @@ const EBIRD = "https://api.ebird.org/v2";
 const INAT = "https://api.inaturalist.org/v1";
 const XC = "https://xeno-canto.org/api/3/recordings";
 const WIKI = "https://en.wikipedia.org/w/api.php";
-const DECK_VERSION = 3, MEDIA_VERSION = 4, WIKI_VERSION = 1;
+const DECK_VERSION = 3, MEDIA_VERSION = 5, WIKI_VERSION = 2;
 const MEDIA_CACHE = "bf-media-v1";
 const range = (a, b) => Array.from({length:b-a+1}, (_, i) => a + i);
 
 /* API keys, encrypted with the site password (PBKDF2-SHA256, AES-GCM). Decrypted once per device. */
 const LOCKED_KEYS = {"salt":"l3ULeA25piC0gQVcQWpbDg==","iv":"dMI271CF/kRyiz/L","ct":"ZcCL8nFIX99EonKXeomPYvGcWKPsoae9cwcrEgdVQG9ZmZkhVdOKgJ4KGSOAep35M0VxUj9hellGEdqs/Al6VAW8xdslYQ2zq/DLkEKvHN7uizxSaW+s+Q==","iter":600000};
 
-/* The two trips. Each area lists the eBird regions whose observations make up its species pool.
-   Observations are read for the same calendar days in each past year; that gives the in-season list.
-   Photos and audio are chosen by quality, not by date. */
 /* Calendar days from (m0, d0) to (m1, d1), inclusive, within one year. */
 function span(m0, d0, m1, d1){
   const out = []; const end = new Date(2001, m1-1, d1);
   for(let t = new Date(2001, m0-1, d0); t <= end; t.setDate(t.getDate()+1)) out.push([t.getMonth()+1, t.getDate()]);
   return out;
 }
-/* Regions: an eBird region code, "@tobago", or a hotspot cluster { country, lat, lng, km }:
-   every eBird hotspot within km of the point (up to 50, busiest first), read together. */
+/* Regions: an eBird region code, "@tobago", or a hotspot cluster { country, lat, lng, km, exclude }:
+   every eBird hotspot in that country within km of the point (up to 50, busiest first), read together.
+   rangeAreas: the areas the Range clue reports, with their short names. */
 const TRIPS = {
   tt: {
-    rev:1, label:"Trinidad & Tobago", window:"Dec 14–21", days:span(12,14,12,21), years:range(2018,2025), xcCountry:"Trinidad & Tobago",
+    rev:2, label:"Trinidad & Tobago", window:"Dec 14–21", days:span(12,14,12,21), years:range(2018,2025), xcCountry:"Trinidad & Tobago",
     areas:[
       { id:"all", label:"Both islands", regions:["TT"] },
+      { id:"trinidad", label:"Trinidad only", regions:["trinidad"] },
       { id:"tobago", label:"Tobago only", regions:["@tobago"] }
-    ]
+    ],
+    clusters:{ trinidad:{ country:"TT", lat:10.45, lng:-61.25, km:50, exclude:"TT-TOB" } },
+    rangeAreas:[["trinidad","Trinidad"],["tobago","Tobago"]], rangeAll:"Both"
   },
   cr: {
     rev:2, label:"Costa Rica", window:"Jan 29–Feb 11", days:span(1,29,2,11), years:range(2019,2026), xcCountry:"Costa Rica",
@@ -259,9 +266,62 @@ const TRIPS = {
       fortuna:{ country:"CR", lat:10.471, lng:-84.645, km:12 },
       monteverde:{ country:"CR", lat:10.303, lng:-84.808, km:10 },
       dota:{ country:"CR", lat:9.552, lng:-83.807, km:10 }
-    }
+    },
+    rangeAreas:[["fortuna","Fortuna"],["monteverde","Monteverde"],["dota","Dota"]], rangeAll:"All 3"
   }
 };
+
+/* Typical habitat and where each family is usually seen. Wikipedia text refines these per bird. */
+const FAMILY = {
+  "Tyrant Flycatchers":["edge","perched"], "Tanagers and Allies":["forest","canopy"], "Hummingbirds":["forest","flowers"],
+  "New World Warblers":["forest","foliage"], "Hawks, Eagles, and Kites":["open","soaring"], "Ovenbirds and Woodcreepers":["forest","trunks"],
+  "Pigeons and Doves":["open","ground"], "Herons, Egrets, and Bitterns":["wetland","wading"], "Typical Antbirds":["forest","understory"],
+  "Troupials and Allies":["edge","perched"], "New World and African Parrots":["forest","flying"], "Woodpeckers":["forest","trunks"],
+  "Wrens":["forest","understory"], "Thrushes and Allies":["forest","ground"], "Cardinals and Allies":["edge","foliage"],
+  "Sandpipers and Allies":["coast","shore"], "Swallows":["open","flying"], "Swifts":["open","flying"], "Owls":["forest","night"],
+  "Falcons and Caracaras":["open","perched"], "Vireos, Shrike-Babblers, and Erpornis":["forest","foliage"], "New World Sparrows":["scrub","ground"],
+  "Ducks, Geese, and Waterfowl":["water","swimming"], "Cuckoos":["edge","perched"], "Finches, Euphonias, and Allies":["forest","canopy"],
+  "Rails, Gallinules, and Coots":["wetland","ground"], "Trogons":["forest","perched"], "Nightjars and Allies":["open","night"],
+  "Kingfishers":["rivers","perched"], "Gulls, Terns, and Skimmers":["coast","flying"], "Tityras and Allies":["forest","canopy"],
+  "Motmots":["forest","perched"], "Manakins":["forest","understory"], "Guans, Chachalacas, and Curassows":["forest","canopy"],
+  "Plovers and Lapwings":["open","ground"], "Toucans":["forest","canopy"], "Ibises and Spoonbills":["wetland","wading"],
+  "New World Vultures":["open","soaring"], "Cotingas":["forest","canopy"], "Tinamous":["forest","ground"], "Grebes":["water","swimming"],
+  "Antthrushes":["forest","ground"], "Gnatcatchers":["forest","foliage"], "New World Quail":["forest","ground"],
+  "Crows, Jays, and Magpies":["edge","canopy"], "Potoos":["forest","night"], "Mockingbirds and Thrashers":["towns","perched"],
+  "Puffbirds":["forest","perched"], "Antpittas":["forest","ground"], "Royal Flycatchers and Allies":["forest","understory"],
+  "Stilts and Avocets":["wetland","wading"], "Jacanas":["wetland","wading"], "Frigatebirds":["coast","soaring"], "Boobies and Gannets":["sea","flying"],
+  "Anhingas":["water","swimming"], "Cormorants and Shags":["water","swimming"], "Pelicans":["coast","flying"], "Osprey":["water","soaring"],
+  "Barn-Owls":["open","night"], "Jacamars":["forest","perched"], "Waxbills and Allies":["grassland","grass"], "Old World Sparrows":["towns","ground"],
+  "Silky-flycatchers":["edge","perched"], "Oilbird":["caves","night"], "Limpkin":["wetland","wading"], "Flamingos":["wetland","wading"],
+  "Tropicbirds":["sea","flying"], "Shearwaters and Petrels":["sea","flying"], "Weavers and Allies":["grassland","perched"], "Finfoots":["rivers","swimming"],
+  "Sunbittern":["rivers","wading"], "Storks":["wetland","wading"], "New World Barbets":["forest","canopy"], "Toucan-Barbets":["forest","canopy"],
+  "Tapaculos":["forest","understory"], "Sharpbill":["forest","canopy"], "Dippers":["rivers","rocks"], "Waxwings":["edge","canopy"],
+  "Wrenthrush":["forest","understory"]
+};
+/* Habitat words, in the order they're checked against the bird's habitat sentence; the earliest mention wins. */
+const HAB_WORDS = [
+  ["mangrove", /\bmangroves?\b/i],
+  ["open", /\b(open (country|areas?|habitats?|woodlands?|land)|semi-open|pastures?|fields|savann?as?|agricultural)\b/i],
+  ["forest", /\b(rain ?forests?|cloud ?forests?|forests?|woodlands?|wooded)\b/i],
+  ["edge", /\b(forest edges?|edges?|clearings?|second(ary)?[- ]growth)\b/i],
+  ["towns", /\b(gardens?|parks?|urban|towns?|villages?|suburb\w*|cities|human habitation|cultivat\w*|plantations?)\b/i],
+  ["wetland", /\b(marsh(es)?|swamps?|wetlands?|rice ?fields|lagoons?|reed ?beds?)\b/i],
+  ["water", /\b(lakes?|ponds?|reservoirs?|fresh ?water)\b/i],
+  ["rivers", /\b(rivers?|streams?|creeks?)\b/i],
+  ["coast", /\b(coasts?|coastal|beaches|mudflats?|estuar\w+|shorelines?|seashore)\b/i],
+  ["sea", /\b(oceans?|pelagic|offshore|open sea|marine)\b/i],
+  ["scrub", /\b(scrub\w*|thickets?|shrub\w*|brush)\b/i],
+  ["grassland", /\b(grass(lands?)?|meadows?|p[aá]ramo)\b/i]
+];
+/* Where-seen words found in behavior text; they replace the family's default only for families whose default is a perch level. */
+const SEEN_WORDS = [
+  ["ground", /\b(on the ground|ground[- ]dwelling|terrestrial|leaf litter|forages? on (the )?ground)\b/i],
+  ["understory", /\b(understor(e)?y|undergrowth|low in (the )?(vegetation|forest)|dense thickets)\b/i],
+  ["canopy", /\b(canopy|treetops?)\b/i],
+  ["soaring", /\bsoar(s|ing)?\b/i],
+  ["flying", /\b(aerial insectivore|hawking|catches insects in flight)\b/i]
+];
+const FLEXIBLE_SEEN = new Set(["perched","canopy","foliage","understory","ground"]);
 
 const S = { trip:"tt", area:"all", mode:"mixed", style:"choice", tier:0.1, deck:null, species:[], srs:{}, cur:null, mediaCache:new Map(), noMedia:new Set(), session:{seen:0,got:0}, log:[], keys:null, last:[] };
 
@@ -272,7 +332,7 @@ const xcKey = () => (S.keys && S.keys.xc) || "";
 const shuffle = a => { for(let i = a.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const online = () => navigator.onLine !== false;
-function show(id){ for(const s of ["lock","setup","study"]) $("#"+s).hidden = s !== id; window.scrollTo(0, 0); }
+function show(id){ for(const s of ["lock","setup","study"]) $("#"+s).hidden = s !== id; document.body.classList.toggle("studying", id === "study"); window.scrollTo(0, 0); }
 
 /* ---------- unlock ---------- */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -289,7 +349,7 @@ $("#lockForm").addEventListener("submit", async e => {
   $("#unlockBtn").disabled = true; $("#lockStatus").className = "status"; $("#lockStatus").textContent = "Checking…";
   try{
     S.keys = await unlock(pw); LS.set("bf.keys", S.keys); $("#pw").value = "";
-    $("#lockStatus").textContent = ""; show("setup");
+    $("#lockStatus").textContent = ""; show("setup"); renderOffline();
   }catch(err){ $("#lockStatus").className = "status err"; $("#lockStatus").textContent = "That password didn't work."; }
   finally{ $("#unlockBtn").disabled = false; }
 });
@@ -301,23 +361,23 @@ function renderTrips(){
   for(const [id, t] of Object.entries(TRIPS)){
     const b = document.createElement("button"); b.className = "trip"; b.setAttribute("aria-pressed", String(id === S.trip));
     b.innerHTML = `<b>${t.label}</b><span>${t.window}</span>`;
-    b.addEventListener("click", () => { S.trip = id; S.area = "all"; LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderOffline(); });
+    b.addEventListener("click", () => { S.trip = id; S.area = LS.get("bf.area."+id, "all"); LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderOffline(); });
     $("#trips").appendChild(b);
   }
 }
 function renderAreas(){
   const sel = $("#area"); sel.innerHTML = "";
   for(const a of TRIPS[S.trip].areas){ const o = document.createElement("option"); o.value = a.id; o.textContent = a.label; sel.appendChild(o); }
-  sel.value = S.area;
+  sel.value = TRIPS[S.trip].areas.some(a => a.id === S.area) ? S.area : "all";
 }
 /* A saved bird list is reused only if it was built for the trip's current dates and areas (rev). */
 function cachedDeck(trip = S.trip){ const d = LS.get("bf.deck."+trip, null); return d && d.v === DECK_VERSION && (d.rev || 1) === TRIPS[trip].rev ? d : null; }
 function renderDeckInfo(){
   const d = cachedDeck(), el = $("#deckInfo");
-  if(!d){ el.textContent = `The first start reads ${TRIPS[S.trip].years.length} years of eBird reports for these dates (a minute or two) and saves the list on this device.`; return; }
+  if(!d){ el.textContent = `Start or Download first builds the bird list from ${TRIPS[S.trip].years.length} years of eBird reports for these dates (up to a few minutes) and saves it on this device.`; return; }
   el.textContent = `Bird list saved ${new Date(d.built).toLocaleDateString()} · ${d.species.length} species reported · `;
   const b = document.createElement("button"); b.className = "link"; b.textContent = "Rebuild from eBird";
-  b.addEventListener("click", () => { LS.del("bf.deck."+S.trip); renderDeckInfo(); setStatus("Press Start to rebuild."); });
+  b.addEventListener("click", () => { LS.del("bf.deck."+S.trip); renderDeckInfo(); renderOffline(); setStatus("Press Start to rebuild."); });
   el.appendChild(b);
 }
 function readPicker(){
@@ -341,7 +401,8 @@ async function getJSON(url, tries = 3){
 async function resolveRegion(trip, code, key){
   const cl = TRIPS[trip].clusters && TRIPS[trip].clusters[code];
   if(cl){
-    const hs = await getJSON(`${EBIRD}/ref/hotspot/geo?lat=${cl.lat}&lng=${cl.lng}&dist=${cl.km}&fmt=json&key=${encodeURIComponent(key)}`);
+    let hs = await getJSON(`${EBIRD}/ref/hotspot/geo?lat=${cl.lat}&lng=${cl.lng}&dist=${cl.km}&fmt=json&key=${encodeURIComponent(key)}`);
+    hs = hs.filter(h => (!h.countryCode || h.countryCode === cl.country) && (!cl.exclude || h.subnational1Code !== cl.exclude));
     hs.sort((a, b) => (b.numSpeciesAllTime || 0) - (a.numSpeciesAllTime || 0));
     const ids = hs.slice(0, 50).map(h => h.locId);
     if(!ids.length) throw new Error(`No eBird hotspots found near ${code}.`);
@@ -354,9 +415,9 @@ async function resolveRegion(trip, code, key){
   if(!t) throw new Error("Could not find Tobago among eBird's regions for Trinidad and Tobago.");
   return { path:t.code, r:"", label:t.code };
 }
-async function buildDeck(trip, key){
+async function buildDeck(trip, key, say = setStatus){
   const T = TRIPS[trip];
-  setStatus("Checking eBird…");
+  say("Checking eBird…");
   try{ await getJSON(`${EBIRD}/ref/region/info/TT?key=${encodeURIComponent(key)}`, 1); }
   catch(e){
     if(e.status === 401 || e.status === 403) throw new Error("eBird did not accept the API key.");
@@ -364,7 +425,7 @@ async function buildDeck(trip, key){
     throw new Error("Could not reach eBird: " + e.message);
   }
   const regionCodes = [...new Set(T.areas.flatMap(a => a.regions))];
-  const resolved = {}; for(const c of regionCodes){ setStatus("Finding birding hotspots…"); resolved[c] = await resolveRegion(trip, c, key); }
+  const resolved = {}; for(const c of regionCodes){ say("Finding birding hotspots…"); resolved[c] = await resolveRegion(trip, c, key); }
   const days = []; for(const y of T.years) for(const [m, d] of T.days) days.push({y, m, d});
   const per = {}; for(const c of regionCodes) per[c] = { ok:0, tally:new Map() };
   const queue = []; for(const c of regionCodes) for(const day of days) queue.push({c, day});
@@ -382,8 +443,8 @@ async function buildDeck(trip, key){
           t.days++; per[c].tally.set(o.speciesCode, t);
         }
         per[c].ok++;
-      }catch(e){ failed++; diag(`eBird ${resolved[c].label} ${day.y}-${day.m}-${day.d}: ${e.message}`); }
-      done++; setStatus(`Reading eBird: ${done} of ${total} region-days`);
+      }catch(e){ failed++; diag(`eBird ${R.label} ${day.y}-${day.m}-${day.d}: ${e.message}`); }
+      done++; say(`Reading eBird: ${done} of ${total} region-days`);
     }
   }
   await Promise.all([worker(),worker(),worker()]);
@@ -399,21 +460,23 @@ async function buildDeck(trip, key){
   }
   const codes = [...species.keys()];
   for(let i = 0; i < codes.length; i += 80){
-    setStatus(`Adding families: ${Math.min(i+80, codes.length)} of ${codes.length}`);
+    say(`Adding families: ${Math.min(i+80, codes.length)} of ${codes.length}`);
     try{
       const tax = await getJSON(`${EBIRD}/ref/taxonomy/ebird?fmt=json&species=${codes.slice(i, i+80).join(",")}&key=${encodeURIComponent(key)}`);
       for(const t of tax){ const s = species.get(t.speciesCode); if(s){ s.fam = t.familyComName || ""; s.ord = t.taxonOrder || 0; } }
     }catch(e){ diag("taxonomy: " + e.message); }
   }
   const totals = {}; for(const a of T.areas) totals[a.id] = a.regions.reduce((n, c) => n + per[c].ok, 0);
+  say("");
   return { v:DECK_VERSION, rev:T.rev, built:Date.now(), totals, species:[...species.values()].sort((a, b) => (a.ord||0) - (b.ord||0)) };
 }
 
-async function ensureDeck(){
+async function ensureDeck(say = setStatus){
   let deck = cachedDeck();
   if(!deck){
     if(!online()) throw new Error("You're offline, and this trip's bird list hasn't been loaded on this device yet.");
-    deck = await buildDeck(S.trip, ebirdKey()); LS.set("bf.deck."+S.trip, deck);
+    deck = await buildDeck(S.trip, ebirdKey(), say); LS.set("bf.deck."+S.trip, deck);
+    renderDeckInfo();
   }
   return deck;
 }
@@ -432,9 +495,9 @@ $("#start").addEventListener("click", async () => {
     if(S.species.length < 4) throw new Error("Fewer than four birds match. Choose a broader setting under Include birds.");
     S.srs = LS.get("bf.srs."+S.trip, {}); S.mediaCache = new Map(); S.noMedia = new Set(); S.session = {seen:0,got:0}; S.cur = null; S.last = [];
     const T = TRIPS[S.trip];
-    $("#where").textContent = `${T.label}, ${T.window} · ${T.areas.find(a => a.id === S.area).label}`;
-    $("#keyhelp").textContent = S.style === "choice" ? "Keys 1–4: pick a name. Space: reveal / next. R: replay audio." : "Space: reveal / next. Left arrow: missed. Right arrow: got it. R: replay audio.";
-    show("study"); setStatus(""); renderDeckInfo(); renderOffline();
+    $("#where").textContent = `${T.label} · ${T.areas.find(a => a.id === S.area).label}`;
+    $("#keyhelp").textContent = S.style === "choice" ? "Keys 1–4: pick. Space: reveal / next. R: replay." : "Space: reveal / next. ←: missed. →: got it. R: replay.";
+    show("study"); setStatus(""); renderOffline();
     await nextCard();
   }catch(e){ setStatus(e.message, true); }
   finally{ $("#start").disabled = false; }
@@ -462,29 +525,34 @@ async function inatTaxonId(sp){
   return id;
 }
 
-/* High-quality photos only:
+/* High-quality photos of live birds only:
    1. The species' featured photos on iNaturalist (chosen by its community to represent the species).
-   2. Research-grade sightings other users have favorited, highest-favorited first.
+   2. Research-grade, non-captive sightings other users have favorited, highest-favorited first, skipping any tagged as
+      egg, nest, dead, feather, bone, track, scat or molt, or whose notes mention a nest or eggs.
    Every photo must be at least 1000 px on its long side. Dates and places are ignored. */
 const MIN_LONG_SIDE = 1000;
+const NOT_A_LIVE_BIRD = new Set([7, 19, 23, 25, 26, 27, 28, 30, 35]);
 async function getPhotos(sp){
   const id = await inatTaxonId(sp); if(!id) return [];
   const out = [], seen = new Set();
   const big = p => { const d = p.original_dimensions; return !d || Math.max(d.width, d.height) >= MIN_LONG_SIDE; };
-  const add = (p, link, note) => { if(!p || !p.url || seen.has(p.id) || !big(p)) return; seen.add(p.id);
-    out.push({ src:p.url.replace(/\/(square|small|medium|thumb)\./, "/large."), credit:(p.attribution || "").replace(/^\(c\)\s*/i, "© ") + (note ? " · " + note : ""), link }); };
+  const add = (p, link) => { if(!p || !p.url || seen.has(p.id) || !big(p)) return; seen.add(p.id);
+    out.push({ src:p.url.replace(/\/(square|small|medium|thumb)\./, "/large."), link }); };
   try{
     const t = await getJSON(`${INAT}/taxa/${id}`);
-    for(const tp of (t.results[0] && t.results[0].taxon_photos) || []) add(tp.photo, `https://www.inaturalist.org/photos/${tp.photo.id}`, "iNaturalist featured photo");
+    for(const tp of (t.results[0] && t.results[0].taxon_photos) || []) add(tp.photo, `https://www.inaturalist.org/photos/${tp.photo.id}`);
   }catch(e){ diag(`iNat taxon photos ${sp.name}: ${e.message}`); }
   try{
-    const o = await getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&order_by=votes&per_page=30`);
+    const o = await getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&captive=false&order_by=votes&per_page=40`);
+    let dropped = 0;
     for(const ob of o.results){
       if((ob.faves_count || 0) < 1) continue;
-      add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, `${ob.faves_count} favorite${ob.faves_count === 1 ? "" : "s"}`);
+      const tagged = (ob.annotations || []).some(a => NOT_A_LIVE_BIRD.has(a.controlled_value_id));
+      if(tagged || /\b(nests?|nesting|eggs?|clutch)\b/i.test(ob.description || "")){ dropped++; continue; }
+      add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`);
     }
+    if(dropped) diag(`photos: dropped ${dropped} egg/nest/dead for ${sp.name}`);
   }catch(e){ diag(`iNat obs photos ${sp.name}: ${e.message}`); }
-  diag(`photos: ${out.length} high-quality for ${sp.name}`);
   return out.slice(0, 15);
 }
 
@@ -516,7 +584,7 @@ async function getAudio(sp){
   }catch(e){ diag(`xeno-canto ${sp.name}: ${e.message}`); }
   const songs = recs.filter(r => /song/i.test(r.type)), calls = recs.filter(r => !/song/i.test(r.type));
   const mixed = []; while(mixed.length < 10 && (songs.length || calls.length)){ if(songs.length) mixed.push(songs.shift()); if(calls.length && mixed.length < 10) mixed.push(calls.shift()); }
-  return mixed.map(r => ({ src:r.file, secs:secs(r.length), sono:(r.sono && (r.sono.med || r.sono.small)) || "", credit:`XC${r.id} · ${r.rec} · ${r.type || "sound"} · ${r.cnt} · grade ${r.q}`, link:r.url || `https://xeno-canto.org/${r.id}` }));
+  return mixed.map(r => ({ src:r.file, secs:secs(r.length), link:r.url || `https://xeno-canto.org/${r.id}` }));
 }
 
 async function getMedia(sp, type){
@@ -533,7 +601,7 @@ async function getMedia(sp, type){
   const list = await p; S.mediaCache.set(k, list); return list;
 }
 
-/* ---------- Wikipedia facts: range, habitat, behavior ---------- */
+/* ---------- Wikipedia: the sentences behind the habitat and where-seen clues ---------- */
 function splitSentences(text){
   let t = text.replace(/\[[^\]]*\]/g, "").replace(/\s*\([^()]*\)/g, "").replace(/\s+/g, " ");
   t = t.replace(/\b([A-Z])\. (?=[a-z])/g, "$1§ ").replace(/\b(e\.g|i\.e|c|ca|approx|St|Mt|sp|ssp|spp|var)\. /g, "$1§ ");
@@ -542,35 +610,70 @@ function splitSentences(text){
     .filter(s => s.length > 30 && s.length < 400 && /^[A-Z"']/.test(s) && !/subspecies|nominate|taxonom|was described|binomial|genus/i.test(s));
 }
 function wikiSections(text){ const out = []; let cur = {h:"_lead", body:""}; for(const line of text.split("\n")){ const m = line.match(/^(=+)\s*(.+?)\s*=+$/); if(m){ out.push(cur); cur = {h:m[2].toLowerCase(), body:""}; } else cur.body += line + "\n"; } out.push(cur); return out; }
-const clip = s => !s ? "" : (s.length > 240 ? s.slice(0, 237).replace(/\s+\S*$/, "") + "…" : s);
-function wikiFacts(text){
+function wikiText(text){
   const secs = wikiSections(text);
   const lead = splitSentences(secs[0].body);
   const dist = splitSentences(secs.filter(s => /distribution|range|habitat/.test(s.h)).map(s => s.body).join(" "));
-  const beh = splitSentences(secs.filter(s => /behaviou?r|feeding|diet|foraging|ecology/.test(s.h) && !/breeding|nest/.test(s.h)).map(s => s.body).join(" "));
-  const RANGE = /\b(found (in|from|throughout|across|on)|occurs|occur|ranges?|native to|resident|breeds? (in|from)|endemic|distributed|distribution)\b/i;
-  const HAB = /\b(natural habitats?|inhabits?|inhabit|habitat (is|includes|consists)|lives in|frequents|prefers)\b|\b(forests?|woodlands?|mangroves?|grasslands?|marsh(es)?|scrub|savann?as?|canopy|clearings?|gardens|plantations|edges?|lowlands?|montane|elevations?)\b/i;
+  const beh = splitSentences(secs.filter(s => /behaviou?r|feeding|diet|foraging|ecology/.test(s.h) && !/breeding|nest/.test(s.h)).map(s => s.body).join(" "))
+    .filter(s => !/\b(eggs?|clutch|incubat\w*|nestlings?|fledg\w*|courtship|copulat\w*)\b/i.test(s));
   const BAD = /destruction|loss|threat|vulnerable|trapping|decline|conservation|IUCN|breeding season|mating season/i;
-  const rangeS = [...lead, ...dist].find(s => RANGE.test(s) && !BAD.test(s));
-  const habS = [...dist, ...lead].find(s => s !== rangeS && HAB.test(s) && !BAD.test(s));
-  const behS = beh.filter(s => !/\b(eggs?|clutch|incubat\w*|nestlings?|fledg\w*|courtship|copulat\w*)\b/i.test(s) && !BAD.test(s));
-  let behavior = behS[0] || ""; if(behS[1] && behavior.length + behS[1].length < 260) behavior += " " + behS[1];
-  return { range:clip(rangeS), habitat:clip(habS), behavior:clip(behavior) };
+  const HAB = /\b(natural habitats?|inhabits?|inhabit|habitats?|lives in|frequents|prefers|occurs in|found in)\b/i;
+  const habS = [...dist, ...lead].filter(s => HAB.test(s) && !BAD.test(s)).slice(0, 2);
+  return { hab:habS.join(" "), beh:beh.slice(0, 4).join(" ") };
 }
 async function getFacts(sp){
   const k = `bf.w${WIKI_VERSION}.${sp.code}`;
   const c = LS.get(k, null); if(c) return c;
   if(!online()) return null;
-  let facts = { range:"", habitat:"", behavior:"", title:"" };
+  let facts = { hab:"", beh:"" };
   try{
     for(const q of [sp.sci, sp.name]){
       const j = await getJSON(`${WIKI}?action=query&prop=extracts&explaintext=1&redirects=1&titles=${encodeURIComponent(q)}&format=json&origin=*`, 2);
       const p = Object.values((j.query && j.query.pages) || {})[0];
-      if(p && p.extract && p.extract.length > 200){ facts = { ...wikiFacts(p.extract), title:p.title }; break; }
+      if(p && p.extract && p.extract.length > 200){ facts = wikiText(p.extract); break; }
     }
   }catch(e){ diag(`Wikipedia ${sp.name}: ${e.message}`); return null; }
   LS.set(k, facts);
   return facts;
+}
+
+/* ---------- Clues ---------- */
+function pct(sp, area){ const t = S.deck.totals[area] || 0; return t ? 100 * (sp.d[area] || 0) / t : 0; }
+function rangeClue(sp){
+  const T = TRIPS[S.trip];
+  const inArea = T.rangeAreas.filter(([id]) => pct(sp, id) >= 5);
+  if(!inArea.length){ const best = T.rangeAreas.slice().sort((a, b) => pct(sp, b[0]) - pct(sp, a[0]))[0]; return pct(sp, best[0]) > 0 ? best[1] : "—"; }
+  if(inArea.length === T.rangeAreas.length) return T.rangeAll;
+  return inArea.map(a => a[1]).join(" · ");
+}
+function freqClue(sp){ const p = pct(sp, S.area); return p >= 40 ? "Common" : p >= 10 ? "Uncommon" : "Rare"; }
+function earliest(text, words){
+  /* earliest mention wins; at the same spot the longer phrase wins ("forest edge" → edge) */
+  let best = null, at = Infinity, len = 0;
+  for(const [w, re] of words){ const m = re.exec(text); if(m && (m.index < at || (m.index === at && m[0].length > len))){ at = m.index; len = m[0].length; best = w; } }
+  return best;
+}
+function habitatClue(sp, f){
+  const fam = FAMILY[sp.fam] || [];
+  return (f && f.hab && earliest(f.hab, HAB_WORDS)) || fam[0] || "—";
+}
+function seenClue(sp, f){
+  const fam = FAMILY[sp.fam] || [];
+  const def = fam[1] || "perched";
+  if(!FLEXIBLE_SEEN.has(def)) return def;
+  return (f && f.beh && earliest(f.beh, SEEN_WORDS)) || def;
+}
+const cap = s => s && s !== "—" ? s[0].toUpperCase() + s.slice(1) : s;
+async function renderClues(card){
+  const { sp } = card;
+  $("#cRange").textContent = rangeClue(sp);
+  $("#cFreq").textContent = freqClue(sp);
+  const fam = FAMILY[sp.fam] || [];
+  $("#cHab").textContent = cap(fam[0] || "…"); $("#cSeen").textContent = cap(fam[1] || "…");
+  const f = await getFacts(sp);
+  if(S.cur !== card) return;
+  $("#cHab").textContent = cap(habitatClue(sp, f));
+  $("#cSeen").textContent = cap(seenClue(sp, f));
 }
 
 /* ---------- Offline storage: photos and recordings saved in the browser's cache ---------- */
@@ -583,41 +686,71 @@ async function cachedURL(src){
 const storable = it => /inaturalist-open-data\.s3\.amazonaws\.com|xeno-canto\.org/.test(it.src);
 const OFF_PHOTOS = 3, OFF_AUDIO = 2;
 const OFF_MAX_BYTES = { photo:1.5e6, audio:2.5e6 };
+const PER_BIRD = { photo:1e6, audio:1.2e6 };
 let offAbort = null;
 
-function offKey(){ return "bf.offline." + S.trip; }
+/* Per trip: which birds have their photos and their audio saved, and the total size. */
+function offKey(trip = S.trip){ return "bf.off2." + trip; }
+function offRecord(trip = S.trip){ return LS.get(offKey(trip), { photo:[], audio:[], bytes:0, date:0 }); }
 function fmtMB(b){ return b > 1e9 ? (b/1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b/1e6)) + " MB"; }
-async function renderOffline(){
-  const info = $("#offInfo"), saved = LS.get(offKey(), null);
+function wantedTypes(mode){ return mode === "mixed" ? ["photo","audio"] : [mode]; }
+/* Birds in the current selection still missing something, per type. */
+function missingFor(deck, area, tier, mode){
+  const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
+  const birds = deckSpecies(deck, area, tier);
+  const out = { birds:birds.length, photo:0, audio:0, todo:[] };
+  for(const sp of birds){ let need = false; for(const t of wantedTypes(mode)) if(!have[t].has(sp.code)){ out[t]++; need = true; } if(need) out.todo.push(sp); }
+  return out;
+}
+function renderOffline(){
+  const info = $("#offInfo"), btn = $("#offGet"), rec = offRecord();
+  const mode = $("#mode").value, area = $("#area").value, tier = Number($("#tier").value);
+  const has = rec.photo.length || rec.audio.length;
+  $("#offDel").hidden = !has || !!offAbort;
+  if(!canCache){ info.textContent = "This browser can't store files for offline use."; btn.hidden = true; return; }
+  if(offAbort){ btn.hidden = true; return; }
   const deck = cachedDeck();
-  const n = deck ? deckSpecies(deck, $("#area").value, Number($("#tier").value)).length : 0;
-  const modeTxt = { mixed:"photos and audio", photo:"photos", audio:"audio" }[$("#mode").value];
-  let txt = deck ? `This deck: ${n} birds, ${modeTxt}. Expect roughly ${fmtMB(n * ($("#mode").value === "photo" ? 1e6 : $("#mode").value === "audio" ? 1.2e6 : 2.2e6))}; use Wi-Fi.` : "Start the deck once while online, then download it.";
-  if(saved) txt = `Saved on this device: ${saved.count} ${TRIPS[S.trip].label} birds (${fmtMB(saved.bytes)}), ${new Date(saved.date).toLocaleDateString()}. ` + txt;
-  info.textContent = txt;
-  $("#offDel").hidden = !saved; $("#offGet").disabled = !deck || !!offAbort || !canCache;
-  if(!canCache) info.textContent = "This browser can't store files for offline use.";
+  if(!deck){
+    info.textContent = "Saves photos, audio and clues for the birds selected above, about 1–2 MB per bird. The bird list is built first. Use Wi-Fi.";
+    btn.hidden = false; btn.textContent = "Download this deck"; btn.disabled = !online(); return;
+  }
+  const m = missingFor(deck, area, tier, mode);
+  const savedTxt = has ? ` ${fmtMB(rec.bytes)} saved on this device.` : "";
+  if(!m.todo.length){
+    info.innerHTML = ""; const d = document.createElement("span"); d.className = "done"; d.textContent = `✓ Downloaded: all ${m.birds} birds in this deck.`;
+    info.append(d, savedTxt); btn.hidden = true; return;
+  }
+  const est = wantedTypes(mode).reduce((n, t) => n + m[t] * PER_BIRD[t], 0);
+  info.textContent = (m.todo.length === m.birds ? `This deck: ${m.birds} birds, about ${fmtMB(est)}. Use Wi-Fi.` : `${m.todo.length} of ${m.birds} birds still to download, about ${fmtMB(est)}.`) + savedTxt;
+  btn.hidden = false; btn.disabled = !online();
+  btn.textContent = m.todo.length === m.birds ? "Download this deck" : `Download ${m.todo.length} more`;
 }
 async function downloadDeck(){
   readPicker();
-  const deck = cachedDeck(); if(!deck) return;
   if(!online()){ $("#offInfo").textContent = "Connect to the internet to download."; return; }
+  const btn = $("#offGet"); btn.disabled = true;
+  let deck;
+  try{ deck = await ensureDeck(t => { if(t) $("#offInfo").textContent = t; }); }
+  catch(e){ $("#offInfo").textContent = e.message; btn.disabled = false; return; }
   try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
-  const birds = deckSpecies(deck, S.area, S.tier);
-  const types = S.mode === "mixed" ? ["photo","audio"] : [S.mode];
+  S.deck = deck;
+  const types = wantedTypes(S.mode);
+  const todo = missingFor(deck, S.area, S.tier, S.mode).todo;
   const cache = await caches.open(MEDIA_CACHE);
-  const prev = LS.get(offKey(), { codes:[], bytes:0, count:0 });
-  const codes = new Set(prev.codes); let bytes = prev.bytes || 0, done = 0;
+  const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
+  let bytes = rec.bytes || 0, done = 0;
   offAbort = new AbortController(); const signal = offAbort.signal;
-  $("#offBar").hidden = false; $("#offStop").hidden = false; $("#offGet").disabled = true;
+  $("#offBar").hidden = false; $("#offStop").hidden = false; renderOffline();
   const bar = $("#offBar i");
-  const queue = birds.slice();
+  const save = () => LS.set(offKey(), { photo:[...have.photo], audio:[...have.audio], bytes, date:Date.now() });
+  const queue = todo.slice();
   async function worker(){
     while(queue.length && !signal.aborted){
       const sp = queue.shift();
       try{
         await getFacts(sp);
         for(const type of types){
+          if(have[type].has(sp.code)) continue;
           /* Candidates in order; audio shortest first. A file over the size cap is skipped while other candidates remain. */
           const want = type === "photo" ? OFF_PHOTOS : OFF_AUDIO;
           const cands = (await getMedia(sp, type)).filter(storable)
@@ -629,36 +762,35 @@ async function downloadDeck(){
             const r = await fetch(it.src, { signal });
             if(!r.ok) continue;
             const blob = await r.blob();
-            const left = cands.length - i - 1;
-            if(blob.size > OFF_MAX_BYTES[type] && left >= want - saved) continue;
+            if(blob.size > OFF_MAX_BYTES[type] && cands.length - i - 1 >= want - saved) continue;
             await cache.put(it.src, new Response(blob, { headers:{ "Content-Type": blob.type || (type === "photo" ? "image/jpeg" : "audio/mpeg") } }));
             bytes += blob.size; saved++;
           }
+          if(!signal.aborted) have[type].add(sp.code);
         }
-        codes.add(sp.code);
       }catch(e){ if(!signal.aborted) diag(`download ${sp.name}: ${e.message}`); }
       done++;
-      bar.style.width = (100 * done / birds.length) + "%";
-      $("#offInfo").textContent = `Downloading ${done} of ${birds.length} birds · ${fmtMB(bytes)}`;
-      if(done % 5 === 0) LS.set(offKey(), { codes:[...codes], bytes, count:codes.size, date:Date.now() });
+      bar.style.width = (100 * done / todo.length) + "%";
+      $("#offInfo").textContent = `Downloading ${done} of ${todo.length} birds · ${fmtMB(bytes)}`;
+      if(done % 5 === 0) save();
     }
   }
   await Promise.all([worker(), worker(), worker()]);
-  LS.set(offKey(), { codes:[...codes], bytes, count:codes.size, date:Date.now() });
+  save();
   const stopped = signal.aborted;
   offAbort = null; $("#offBar").hidden = true; $("#offStop").hidden = true; bar.style.width = "0";
-  await renderOffline();
-  if(stopped) $("#offInfo").textContent = "Stopped. What finished is saved. " + $("#offInfo").textContent;
+  renderDeckInfo(); renderOffline();
+  if(stopped) $("#offInfo").prepend("Stopped; what finished is saved. ");
 }
 $("#offGet").addEventListener("click", () => downloadDeck());
 $("#offStop").addEventListener("click", () => { if(offAbort) offAbort.abort(); });
 $("#offDel").addEventListener("click", async () => {
   if(canCache) await caches.delete(MEDIA_CACHE);
-  for(const t of Object.keys(TRIPS)) LS.del("bf.offline." + t);
+  for(const t of Object.keys(TRIPS)) LS.del(offKey(t));
   renderOffline();
 });
 addEventListener("online", () => { $("#offPill").hidden = true; renderOffline(); });
-addEventListener("offline", () => { $("#offPill").hidden = false; });
+addEventListener("offline", () => { $("#offPill").hidden = false; renderOffline(); });
 
 /* ---------- Review scheduling ----------
    Leitner-style boxes. Box 0 = just missed. Boxes 1–2 are learning steps measured in cards, so a missed bird returns
@@ -670,10 +802,6 @@ const DAY = 864e5;
 function counter(){ return LS.get("bf.counter."+S.trip, 0); }
 function bump(){ const c = counter() + 1; LS.set("bf.counter."+S.trip, c); return c; }
 const st = sp => S.srs[sp.code];
-function eligible(sp, now, n){
-  const s = st(sp); if(!s) return false;
-  return s.box <= 2 ? n >= s.gapAt : now >= s.due;
-}
 function pickNext(){
   const now = Date.now(), n = counter();
   const avoid = new Set([...S.last.slice(-2), ...S.noMedia]);
@@ -681,21 +809,16 @@ function pickNext(){
   const usable = pool.length ? pool : S.species.filter(sp => !S.noMedia.has(sp.code));
   if(!usable.length) return null;
   const learning = usable.filter(sp => st(sp) && st(sp).box <= 2);
-  // 1. learning cards whose gap has passed, most overdue first
-  const dueLearn = learning.filter(sp => eligible(sp, now, n)).sort((a, b) => st(a).gapAt - st(b).gapAt);
+  const dueLearn = learning.filter(sp => n >= st(sp).gapAt).sort((a, b) => st(a).gapAt - st(b).gapAt);
   if(dueLearn.length) return dueLearn[0];
-  // 2. review cards whose day has come, most overdue first
   const dueRev = usable.filter(sp => st(sp) && st(sp).box >= 3 && now >= st(sp).due).sort((a, b) => st(a).due - st(b).due);
   if(dueRev.length) return dueRev[0];
-  // 3. a new bird, if there is room: common birds first, with a little variety
   const fresh = usable.filter(sp => !st(sp));
   if(fresh.length && learning.length < MAX_LEARNING){
     const area = S.area; fresh.sort((a, b) => (b.d[area] || 0) - (a.d[area] || 0));
     return fresh[Math.floor(Math.random() * Math.min(4, fresh.length))];
   }
-  // 4. the learning card closest to due
   if(learning.length) return learning.sort((a, b) => st(a).gapAt - st(b).gapAt)[0];
-  // 5. everything is learned and not yet due: practice the review closest to due
   const rev = usable.filter(sp => st(sp)).sort((a, b) => st(a).due - st(b).due);
   return rev[0] || usable[0];
 }
@@ -737,16 +860,29 @@ const msg = (text, link) => { const d = document.createElement("div"); d.classNa
 /* Usable items for a card: when offline, only the ones saved on this device. */
 async function playable(items){
   if(online()) return items;
-  const out = [];
-  for(const it of items) if(canCache && await (await caches.open(MEDIA_CACHE)).match(it.src)) out.push(it);
+  if(!canCache) return [];
+  const c = await caches.open(MEDIA_CACHE); const out = [];
+  for(const it of items) if(await c.match(it.src)) out.push(it);
   return out;
+}
+function setAnswerLine(text, cls, family){
+  const v = $("#verdict"); v.textContent = text || ""; v.className = cls || "";
+  $("#family").textContent = family || "";
+}
+function setButtons(state){
+  // state: "ask" (before answering), "next" (answered), "grade" (recall, answer shown)
+  $("#btnReveal").hidden = state !== "ask";
+  $("#btnNext").hidden = state !== "next";
+  $("#btnMiss").hidden = $("#btnGot").hidden = state !== "grade";
 }
 
 async function nextCard(){
   stopAudio(); freeURLs();
   S.cur = null;
-  $("#reveal").hidden = true; $("#btnMiss").hidden = true; $("#btnGot").hidden = true; $("#btnNext").hidden = true;
-  $("#choices").hidden = true; $("#btnReveal").hidden = false; $("#btnReveal").disabled = true;
+  setAnswerLine(""); setButtons("ask"); $("#btnReveal").disabled = true;
+  $("#choices").hidden = S.style !== "choice";
+  for(const b of $("#choices").children){ b.disabled = true; }
+  for(const id of ["#cRange","#cHab","#cSeen","#cFreq"]) $(id).textContent = "";
   $("#offPill").hidden = online();
   $("#stage").replaceChildren(msg("Loading…"));
   let sp, type, items = [];
@@ -765,38 +901,37 @@ async function nextCard(){
     renderStats(); return;
   }
   S.last.push(sp.code); if(S.last.length > 6) S.last.shift();
-  S.cur = { sp, type, items, answered:false };
+  const card = S.cur = { sp, type, items, answered:false };
   renderStage();
+  renderClues(card);
   if(S.style === "choice") renderChoices();
   $("#btnReveal").disabled = false;
   renderStats();
-  getFacts(sp).catch(() => {});
 }
 
 function renderStage(){
-  const { sp, type, items } = S.cur; const st = $("#stage");
+  const { sp, type, items } = S.cur; const stage = $("#stage");
   const searchLink = type === "photo" ? { href:`https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sp.sci)}`, text:"Look it up on iNaturalist" } : { href:`https://xeno-canto.org/explore?query=${encodeURIComponent(sp.sci)}`, text:"Look it up on xeno-canto" };
   const card = S.cur, order = shuffle(items.slice());
   const next = async () => {
     if(S.cur !== card) return;
     const it = order.shift();
-    if(!it){ st.replaceChildren(msg(`None of the ${type === "photo" ? "photos" : "recordings"} for this bird would load.`, searchLink)); return; }
+    if(!it){ stage.replaceChildren(msg(`None of the ${type === "photo" ? "photos" : "recordings"} for this bird would load.`, searchLink)); return; }
     card.it = it;
-    if(!$("#reveal").hidden) renderCredit();
     const local = await cachedURL(it.src); if(local) objectURLs.push(local);
     if(S.cur !== card) return;
     const src = local || it.src;
     if(type === "photo"){
       const img = new Image(); img.alt = "Bird to identify";
       img.onerror = () => { diag("photo failed: " + it.src); next(); };
-      img.src = src; st.replaceChildren(img);
+      img.src = src; stage.replaceChildren(img);
     }else{
       const wrap = document.createElement("div"); wrap.className = "audio-wrap";
       const lab = document.createElement("div"); lab.className = "audio-label"; lab.textContent = "Listen and identify";
       audioEl = document.createElement("audio"); audioEl.controls = true; audioEl.preload = "auto";
       audioEl.onerror = () => { diag("audio failed: " + it.src); next(); };
       audioEl.src = src;
-      wrap.append(lab, audioEl); st.replaceChildren(wrap);
+      wrap.append(lab, audioEl); stage.replaceChildren(wrap);
       audioEl.play().catch(() => {});
     }
   };
@@ -808,11 +943,10 @@ function renderChoices(){
   const opts = shuffle([sp, ...distractors(sp)]); S.cur.opts = opts;
   const box = $("#choices"); box.replaceChildren();
   opts.forEach((o, i) => {
-    const b = document.createElement("button"); b.textContent = `${i+1}. ${o.name}`; b.dataset.code = o.code;
+    const b = document.createElement("button"); b.textContent = o.name; b.dataset.code = o.code; b.dataset.n = i + 1;
     b.addEventListener("click", () => choose(o));
     box.appendChild(b);
   });
-  box.hidden = false;
 }
 function markChoices(pickedCode){
   for(const b of $("#choices").children){ b.disabled = true; if(b.dataset.code === S.cur.sp.code) b.classList.add("right"); else if(b.dataset.code === pickedCode) b.classList.add("wrong"); }
@@ -823,53 +957,21 @@ function choose(o){
   const right = o.code === S.cur.sp.code;
   markChoices(o.code);
   record(S.cur.sp, right);
-  showAnswer(right ? "ok" : "no");
-  $("#btnReveal").hidden = true; $("#btnNext").hidden = false; $("#btnNext").focus({preventScroll:true});
+  setAnswerLine(right ? "Correct" : "Not quite", right ? "ok" : "no", S.cur.sp.fam);
+  setButtons("next"); $("#btnNext").focus({preventScroll:true});
 }
 /* Reveal: show the answer without answering. In multiple choice this counts as a miss. */
 function revealNow(){
-  if(!S.cur || !$("#reveal").hidden) return;
+  if(!S.cur || S.cur.answered || S.cur.revealed) return;
   if(S.style === "choice"){
-    if(S.cur.answered) return;
     S.cur.answered = true; markChoices(null); record(S.cur.sp, false);
-    showAnswer("revealed");
-    $("#btnReveal").hidden = true; $("#btnNext").hidden = false; $("#btnNext").focus({preventScroll:true});
+    setAnswerLine("Revealed", "no", S.cur.sp.fam);
+    setButtons("next"); $("#btnNext").focus({preventScroll:true});
   }else{
-    showAnswer(null);
-    $("#btnReveal").hidden = true; $("#btnMiss").hidden = false; $("#btnGot").hidden = false;
+    S.cur.revealed = true;
+    setAnswerLine(S.cur.sp.name, "", S.cur.sp.fam);
+    setButtons("grade");
   }
-}
-function pct(sp, area){ const t = S.deck.totals[area] || 0; return t ? Math.round(100 * (sp.d[area] || 0) / t) : 0; }
-function frequencyText(sp){
-  const T = TRIPS[S.trip];
-  const main = `Reported on ${pct(sp, S.area)}% of days, ${T.window}`;
-  const parts = T.areas.filter(a => a.id !== "all" && a.id !== S.area).map(a => `${a.label.replace(/\s*\(.*\)/, "")} ${pct(sp, a.id)}%`);
-  return parts.length ? `${main} (${parts.join(" · ")})` : main;
-}
-function renderCredit(){
-  const c = $("#rCredit"); c.textContent = ""; const it = S.cur && S.cur.it; if(!it) return;
-  c.append(it.credit + " · ");
-  const a = document.createElement("a"); a.href = it.link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "source"; c.append(a);
-}
-async function showAnswer(kind){
-  const { sp } = S.cur; const card = S.cur;
-  const v = $("#verdict");
-  v.className = "verdict" + (kind === "ok" ? " ok" : kind ? " no" : "");
-  v.textContent = kind === "ok" ? "Correct" : kind === "no" ? "Not quite" : kind === "revealed" ? "Revealed" : "";
-  v.hidden = !kind;
-  $("#rName").textContent = sp.name; $("#rSci").textContent = sp.sci + (sp.fam ? " · " + sp.fam : "");
-  const dl = $("#rInfo"); dl.replaceChildren();
-  const row = (k, val, link) => { if(!val) return; const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = val; if(link){ dd.append(" "); const a = document.createElement("a"); a.href = link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Wikipedia"; dd.append(a); } dl.append(dt, dd); };
-  row("How common", frequencyText(sp));
-  renderCredit();
-  $("#reveal").hidden = false;
-  const f = await getFacts(sp);
-  if(S.cur !== card || !f) return;
-  const wl = f.title ? `https://en.wikipedia.org/wiki/${encodeURIComponent(f.title.replace(/ /g, "_"))}` : "";
-  const rows = [["Range", f.range], ["Habitat", f.habitat], ["Behavior", f.behavior]].filter(r => r[1]);
-  dl.replaceChildren();
-  rows.forEach((r, i) => row(r[0], r[1], i === rows.length - 1 && online() ? wl : ""));
-  row("How common", frequencyText(sp));
 }
 function grade(got){
   if(!S.cur || S.cur.answered) return;
@@ -877,15 +979,14 @@ function grade(got){
 }
 
 function renderStats(){
-  let fresh = 0, learning = 0, reviewing = 0, learned = 0, due = 0; const now = Date.now();
+  let fresh = 0, learning = 0, learned = 0, due = 0; const now = Date.now();
   for(const sp of S.species){
     const s = st(sp);
     if(!s) fresh++;
-    else if(s.box <= 2) learning++;
-    else { if(s.box >= 4) learned++; else reviewing++; if(now >= s.due) due++; }
+    else if(s.box >= 4){ learned++; if(now >= s.due) due++; }
+    else { learning++; if(s.box >= 3 && now >= s.due) due++; }
   }
-  const sess = S.session.seen ? ` (${Math.round(100*S.session.got/S.session.seen)}%)` : "";
-  $("#stats").innerHTML = `<span>Learned <b>${learned}</b>/${S.species.length}</span><span>Learning <b>${learning + reviewing}</b></span><span>New <b>${fresh}</b></span>${due ? `<span>Due <b>${due}</b></span>` : ""}<span>Today <b>${S.session.got}/${S.session.seen}</b>${sess}</span>`;
+  $("#stats").innerHTML = `Learned <b>${learned}</b>/${S.species.length} · Learning <b>${learning}</b> · New <b>${fresh}</b>${due ? ` · Due <b>${due}</b>` : ""} · Today <b>${S.session.got}/${S.session.seen}</b>`;
 }
 
 $("#btnReveal").addEventListener("click", revealNow);
@@ -894,16 +995,15 @@ $("#btnMiss").addEventListener("click", () => grade(false));
 $("#btnNext").addEventListener("click", () => nextCard());
 document.addEventListener("keydown", e => {
   if($("#study").hidden || e.target.matches("input,select,textarea") || !S.cur) return;
-  const revealed = !$("#reveal").hidden;
   if((e.key === "r" || e.key === "R") && audioEl && S.cur.type === "audio"){ audioEl.currentTime = 0; audioEl.play().catch(() => {}); return; }
   if(e.key === "Escape"){ $("#btnBack").click(); return; }
   if(S.style === "choice"){
     if(/^[1-4]$/.test(e.key) && !S.cur.answered && S.cur.opts) choose(S.cur.opts[Number(e.key)-1]);
-    else if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a")) return; e.preventDefault(); if(S.cur.answered) nextCard(); else revealNow(); }
+    else if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a") && e.target.id !== "btnNext") return; e.preventDefault(); if(S.cur.answered) nextCard(); else revealNow(); }
   }else{
-    if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a")) return; e.preventDefault(); if(!revealed) revealNow(); else grade(true); }
-    else if(e.key === "ArrowRight" && revealed) grade(true);
-    else if(e.key === "ArrowLeft" && revealed) grade(false);
+    if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a")) return; e.preventDefault(); if(!S.cur.revealed) revealNow(); else grade(true); }
+    else if(e.key === "ArrowRight" && S.cur.revealed) grade(true);
+    else if(e.key === "ArrowLeft" && S.cur.revealed) grade(false);
   }
 });
 
