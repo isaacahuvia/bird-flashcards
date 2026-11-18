@@ -114,7 +114,10 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
 .choices button.right{background:var(--good-bg);border-color:var(--good)}
 .choices button.wrong{background:var(--miss-bg);border-color:var(--miss)}
 .actions{flex:none;display:flex;gap:8px}
-.actions button{flex:1;padding:11px 12px}
+.actions button{flex:1;padding:0 12px;min-height:46px}
+.actions button.flag{flex:none;width:46px;height:46px;padding:0;display:grid;place-items:center;color:var(--ink2)}
+.actions button.flag svg{width:20px;height:20px}
+#btnFlagYes{flex:1.6;white-space:nowrap;font-size:14.5px}
 .keys{font:12px var(--mono);color:var(--ink2);margin:0}
 
 /* families picker */
@@ -260,6 +263,11 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       <button class="primary" id="btnNext" hidden>Next</button>
       <button class="miss" id="btnMiss" hidden>Missed it</button>
       <button class="good" id="btnGot" hidden>Got it</button>
+      <button class="miss" id="btnFlagYes" hidden>Remove image from deck</button>
+      <button id="btnFlagNo" hidden>Cancel</button>
+      <button class="flag" id="btnFlag" aria-label="Flag this image" title="Flag this image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/></svg>
+      </button>
     </div>
     <p class="keys" id="keyhelp"></p>
   </section>
@@ -716,7 +724,13 @@ async function getAudio(sp){
   return mixed.map(r => ({ src:r.file, secs:secs(r.length), link:r.url || `https://xeno-canto.org/${r.id}` }));
 }
 
+/* Photos and recordings you've flagged are never shown again, on any deck. */
+const hiddenMedia = () => new Set(LS.get("bf.hidden", []));
 async function getMedia(sp, type){
+  const hidden = hiddenMedia();
+  return (await getMediaAll(sp, type)).filter(it => !hidden.has(it.src));
+}
+async function getMediaAll(sp, type){
   const k = `${sp.code}|${type}`;
   if(S.mediaCache.has(k)) return S.mediaCache.get(k);
   const lsKey = `bf.m${MEDIA_VERSION}.${k}`;
@@ -1011,11 +1025,35 @@ function setAnswerLine(text, cls, family){
   $("#family").textContent = family || "";
 }
 function setButtons(state){
-  // state: "ask" (before answering), "next" (answered), "grade" (recall, answer shown)
+  // state: "ask" (before answering), "next" (answered), "grade" (recall, answer shown), "flag" (confirming a flag)
+  if(state !== "flag") S.btnState = state;
   $("#btnReveal").hidden = state !== "ask";
   $("#btnNext").hidden = state !== "next";
   $("#btnMiss").hidden = $("#btnGot").hidden = state !== "grade";
+  $("#btnFlagYes").hidden = $("#btnFlagNo").hidden = state !== "flag";
+  $("#btnFlag").hidden = state === "flag";
 }
+
+/* ---------- Flag: remove the photo (or, on a sound-only card, the recording) from this and every future deck ---------- */
+$("#btnFlag").addEventListener("click", () => {
+  if(!S.cur || !S.cur.it) return;
+  $("#btnFlagYes").textContent = S.cur.type === "audio" ? "Remove recording from deck" : "Remove image from deck";
+  setButtons("flag");
+});
+$("#btnFlagNo").addEventListener("click", () => setButtons(S.btnState || "ask"));
+$("#btnFlagYes").addEventListener("click", async () => {
+  const card = S.cur; if(!card || !card.it) return setButtons(S.btnState || "ask");
+  const src = card.it.src;
+  const h = LS.get("bf.hidden", []); if(!h.includes(src)){ h.push(src); LS.set("bf.hidden", h); }
+  try{ if(canCache) await (await caches.open(MEDIA_CACHE)).delete(src); }catch(e){}
+  diag("flagged: " + src);
+  setButtons(S.btnState || "ask");
+  if(S.cur !== card) return;
+  card.items = card.items.filter(it => it.src !== src);
+  if(!card.answered && !$("#verdict").textContent) setAnswerLine(card.type === "audio" ? "Recording removed" : "Image removed", "", "");
+  if(card.items.length){ stopAudio(); renderStage(); }
+  else { diag(`no ${card.type} left for ${card.sp.name}`); nextCard(); }
+});
 
 async function nextCard(){
   stopAudio(); freeURLs();
