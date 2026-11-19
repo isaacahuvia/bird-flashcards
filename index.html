@@ -192,7 +192,7 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       </div>
       <div>
         <label for="mode">Cards</label>
-        <select id="mode"><option value="mixed">Photos and audio</option><option value="both">Photo with sound</option><option value="photo">Photos only</option><option value="audio">Audio only</option></select>
+        <select id="mode"><option value="photo">Photo</option><option value="audio">Audio</option><option value="both">Simultaneous</option><option value="mixed">Alternating</option></select>
       </div>
       <div class="wide">
         <label for="famBox">Families</label>
@@ -847,12 +847,35 @@ function offKey(trip = S.trip){ return "bf.off2." + trip; }
 function offRecord(trip = S.trip){ return LS.get(offKey(trip), { photo:[], audio:[], bytes:0, date:0 }); }
 function fmtMB(b){ return b > 1e9 ? (b/1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b/1e6)) + " MB"; }
 function wantedTypes(mode){ return mode === "mixed" || mode === "both" ? ["photo","audio"] : [mode]; }
-/* Birds in the current selection still missing something, per type. */
+/* Files actually stored on this device, so earlier downloads count whatever setting or version saved them. */
+let cachedSet = null;
+function refreshCachedSet(){
+  if(!canCache) return Promise.resolve();
+  return caches.open(MEDIA_CACHE).then(c => c.keys()).then(ks => { cachedSet = new Set(ks.map(r => r.url)); }).catch(() => {});
+}
+/* A bird's photos (or audio) count as downloaded if the record says so, or if enough of its known files are already stored. */
+function hasType(sp, type, have){
+  if(have[type].has(sp.code)) return true;
+  if(!cachedSet) return false;
+  const list = LS.get(`bf.m${MEDIA_VERSION}.${sp.code}|${type}`, null);
+  if(list && list.empty) return true;               /* looked up already: nothing of this kind exists */
+  if(!Array.isArray(list)) return false;
+  const hidden = hiddenMedia();
+  const st = list.filter(it => storable(it) && !hidden.has(it.src));
+  if(!st.length) return true;                       /* nothing of this kind can be stored */
+  const n = st.filter(it => cachedSet.has(it.src)).length;
+  return n > 0 && n >= Math.min(type === "photo" ? OFF_PHOTOS : OFF_AUDIO, st.length);
+}
+/* Birds in the current selection still missing something, and which types each one needs. */
 function missingFor(deck, mode){
   const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
   const birds = selectedFor(deck);
   const out = { birds:birds.length, photo:0, audio:0, todo:[] };
-  for(const sp of birds){ let need = false; for(const t of wantedTypes(mode)) if(!have[t].has(sp.code)){ out[t]++; need = true; } if(need) out.todo.push(sp); }
+  for(const sp of birds){
+    const types = wantedTypes(mode).filter(t => !hasType(sp, t, have));
+    for(const t of types) out[t]++;
+    if(types.length) out.todo.push({ sp, types });
+  }
   return out;
 }
 function renderOffline(){
@@ -875,9 +898,14 @@ function renderOffline(){
     info.append(d, savedTxt); btn.hidden = true; return;
   }
   const est = wantedTypes(mode).reduce((n, t) => n + m[t] * PER_BIRD[t], 0);
-  info.textContent = (m.todo.length === m.birds ? `This deck: ${m.birds} birds, about ${fmtMB(est)}. Use Wi-Fi.` : `${m.todo.length} of ${m.birds} birds still to download, about ${fmtMB(est)}.`) + savedTxt;
+  const parts = wantedTypes(mode).filter(t => m[t]).map(t => `${t === "photo" ? "photos" : "audio"} for ${m[t]} bird${m[t] === 1 ? "" : "s"}`);
+  const already = wantedTypes(mode).filter(t => !m[t]).map(t => t === "photo" ? "Photos" : "Audio");
+  info.textContent = (m.todo.length === m.birds && !already.length ? `This deck: ${m.birds} birds, about ${fmtMB(est)}. Use Wi-Fi.`
+    : `Still to download: ${parts.join(" and ")}, about ${fmtMB(est)}.` + (already.length ? ` ${already.join(" and ")} already saved.` : "")) + savedTxt;
   btn.hidden = false; btn.disabled = !online();
-  btn.textContent = m.todo.length === m.birds ? "Download this deck" : `Download ${m.todo.length} more`;
+  const need = wantedTypes(mode).filter(t => m[t]);
+  btn.textContent = need.length === 1 && already.length ? (need[0] === "photo" ? "Download photos" : "Download audio")
+    : m.todo.length === m.birds ? "Download this deck" : `Download ${m.todo.length} more`;
 }
 async function downloadDeck(){
   readPicker();
@@ -889,6 +917,7 @@ async function downloadDeck(){
   try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
   S.deck = deck;
   const types = wantedTypes(S.mode);
+  await refreshCachedSet();
   const todo = missingFor(deck, S.mode).todo;
   const cache = await caches.open(MEDIA_CACHE);
   const rec = offRecord(); const have = { photo:new Set(rec.photo), audio:new Set(rec.audio) };
@@ -900,11 +929,10 @@ async function downloadDeck(){
   const queue = todo.slice();
   async function worker(){
     while(queue.length && !signal.aborted){
-      const sp = queue.shift();
+      const { sp, types:need } = queue.shift();
       try{
         await getFacts(sp);
-        for(const type of types){
-          if(have[type].has(sp.code)) continue;
+        for(const type of need){
           /* Candidates in order; audio shortest first. A file over the size cap is skipped while other candidates remain. */
           const want = type === "photo" ? OFF_PHOTOS : OFF_AUDIO;
           const cands = (await getMedia(sp, type)).filter(storable)
@@ -912,20 +940,20 @@ async function downloadDeck(){
           let saved = 0;
           for(let i = 0; i < cands.length && saved < want && !signal.aborted; i++){
             const it = cands[i];
-            if(await cache.match(it.src)){ saved++; continue; }
+            if(await cache.match(it.src)){ saved++; if(cachedSet) cachedSet.add(it.src); continue; }
             const r = await fetch(it.src, { signal });
             if(!r.ok) continue;
             const blob = await r.blob();
             if(blob.size > OFF_MAX_BYTES[type] && cands.length - i - 1 >= want - saved) continue;
             await cache.put(it.src, new Response(blob, { headers:{ "Content-Type": blob.type || (type === "photo" ? "image/jpeg" : "audio/mpeg") } }));
-            bytes += blob.size; saved++;
+            bytes += blob.size; saved++; if(cachedSet) cachedSet.add(it.src);
           }
           if(!signal.aborted) have[type].add(sp.code);
         }
       }catch(e){ if(!signal.aborted) diag(`download ${sp.name}: ${e.message}`); }
       done++;
       bar.style.width = (100 * done / todo.length) + "%";
-      $("#offInfo").textContent = `Downloading ${done} of ${todo.length} birds · ${fmtMB(bytes)}`;
+      $("#offInfo").textContent = `Downloading ${done} of ${todo.length} birds · ${fmtMB(bytes)} saved in all`;
       if(done % 5 === 0) save();
     }
   }
@@ -940,6 +968,7 @@ $("#offGet").addEventListener("click", () => downloadDeck());
 $("#offStop").addEventListener("click", () => { if(offAbort) offAbort.abort(); });
 $("#offDel").addEventListener("click", async () => {
   if(canCache) await caches.delete(MEDIA_CACHE);
+  cachedSet = new Set();
   for(const t of Object.keys(TRIPS)) LS.del(offKey(t));
   renderOffline();
 });
@@ -1045,13 +1074,13 @@ $("#btnFlagYes").addEventListener("click", async () => {
   const card = S.cur; if(!card || !card.it) return setButtons(S.btnState || "ask");
   const src = card.it.src;
   const h = LS.get("bf.hidden", []); if(!h.includes(src)){ h.push(src); LS.set("bf.hidden", h); }
-  try{ if(canCache) await (await caches.open(MEDIA_CACHE)).delete(src); }catch(e){}
+  try{ if(canCache) await (await caches.open(MEDIA_CACHE)).delete(src); if(cachedSet) cachedSet.delete(src); }catch(e){}
   diag("flagged: " + src);
   setButtons(S.btnState || "ask");
   if(S.cur !== card) return;
   card.items = card.items.filter(it => it.src !== src);
   if(!card.answered && !$("#verdict").textContent) setAnswerLine(card.type === "audio" ? "Recording removed" : "Image removed", "", "");
-  if(card.items.length){ stopAudio(); renderStage(); }
+  if(card.items.length){ stopAudio(); card.soundAdded = false; $("#stage").replaceChildren(); renderStage(); }
   else { diag(`no ${card.type} left for ${card.sp.name}`); nextCard(); }
 });
 
@@ -1070,15 +1099,15 @@ async function nextCard(){
     if(!sp) break;
     type = chooseType();
     items = await playable(await getMedia(sp, type));
-    if(!items.length && (S.mode === "mixed" || S.mode === "both")){ type = type === "photo" ? "audio" : "photo"; items = await playable(await getMedia(sp, type)); }
-    /* Photo with sound: the photo plus one of the bird's recordings, when it has any. */
-    sound = S.mode === "both" && type === "photo" ? await playable(await getMedia(sp, "audio")) : [];
-    if(items.length) break;
+    if(!items.length && S.mode === "mixed"){ type = type === "photo" ? "audio" : "photo"; items = await playable(await getMedia(sp, type)); }
+    /* Simultaneous: a photo and a recording together, always. A bird missing either one is skipped. */
+    sound = S.mode === "both" && items.length ? await playable(await getMedia(sp, "audio")) : [];
+    if(items.length && (S.mode !== "both" || sound.length)) break;
     S.noMedia.add(sp.code);
-    diag(`skipped ${sp.name}: no ${online() ? "high-quality" : "downloaded"} ${S.mode === "mixed" ? "photo or audio" : S.mode}`);
+    diag(`skipped ${sp.name}: no ${online() ? "high-quality" : "downloaded"} ${S.mode === "mixed" ? "photo or audio" : S.mode === "both" ? "photo and recording" : S.mode}`);
   }
-  if(!sp || !items.length){
-    $("#stage").replaceChildren(msg(online() ? "No birds in this deck have media that meets the quality bar." : "Nothing in this deck is downloaded for offline use. Go back and download it while online."));
+  if(!sp || !items.length || (S.mode === "both" && !sound.length)){
+    $("#stage").replaceChildren(msg(online() ? (S.mode === "both" ? "No birds in this deck have both a photo and a recording that meet the quality bar." : "No birds in this deck have media that meets the quality bar.") : "Nothing in this deck is downloaded for offline use. Go back and download it while online."));
     renderStats(); return;
   }
   S.last.push(sp.code); if(S.last.length > 6) S.last.shift();
@@ -1097,7 +1126,11 @@ function renderStage(){
   const next = async () => {
     if(S.cur !== card) return;
     const it = order.shift();
-    if(!it){ stage.replaceChildren(msg(`None of the ${type === "photo" ? "photos" : "recordings"} for this bird would load.`, searchLink)); return; }
+    if(!it){
+      /* Simultaneous needs both: if every photo fails, move on rather than leave the sound alone. */
+      if(S.mode === "both" && !card.answered){ diag(`no photo would load for ${sp.name}; skipping`); S.noMedia.add(sp.code); nextCard(); return; }
+      stage.replaceChildren(msg(`None of the ${type === "photo" ? "photos" : "recordings"} for this bird would load.`, searchLink)); return;
+    }
     card.it = it;
     const local = await cachedURL(it.src); if(local) objectURLs.push(local);
     if(S.cur !== card) return;
@@ -1106,8 +1139,10 @@ function renderStage(){
       const img = new Image(); img.alt = "Bird to identify";
       img.onerror = () => { diag("photo failed: " + it.src); next(); };
       img.onload = () => fitPhoto(img, stage);
-      img.src = src; stage.replaceChildren(img);
-      if(card.sound && card.sound.length) addSound(card, stage);
+      img.src = src;
+      for(const old of stage.querySelectorAll("img, .msg, .audio-wrap")) old.remove();
+      stage.prepend(img);
+      if(card.sound && card.sound.length && !card.soundAdded){ card.soundAdded = true; addSound(card, stage); }
     }else{
       const wrap = document.createElement("div"); wrap.className = "audio-wrap";
       const lab = document.createElement("div"); lab.className = "audio-label"; lab.textContent = "Listen and identify";
@@ -1135,7 +1170,13 @@ async function addSound(card, stage){
   bar.append(audioEl); stage.append(bar);
   const tryNext = async () => {
     if(S.cur !== card) return;
-    const it = order.shift(); if(!it){ bar.remove(); return; }
+    const it = order.shift();
+    if(!it){
+      bar.remove();
+      /* Simultaneous needs both: if every recording fails, move on rather than leave the photo alone. */
+      if(S.mode === "both" && !card.answered){ diag(`no recording would load for ${card.sp.name}; skipping`); S.noMedia.add(card.sp.code); nextCard(); }
+      return;
+    }
     const local = await cachedURL(it.src); if(local) objectURLs.push(local);
     if(S.cur !== card) return;
     audioEl.src = local || it.src; audioEl.play().catch(() => {});
@@ -1279,6 +1320,7 @@ document.addEventListener("keydown", e => {
   $("#mode").value = LS.get("bf.mode","mixed");
   $("#style").value = LS.get("bf.style","choice");
   renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline();
+  refreshCachedSet().then(renderOffline);
   show(S.keys ? "setup" : "lock");
   if("serviceWorker" in navigator && location.protocol === "https:"){
     const hadController = !!navigator.serviceWorker.controller;
