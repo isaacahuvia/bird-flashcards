@@ -1168,10 +1168,8 @@ $("#btnFlagYes").addEventListener("click", async () => {
   diag("flagged: " + src);
   setButtons(S.btnState || "ask");
   if(S.cur !== card) return;
-  card.items = card.items.filter(it => it.src !== src);
-  if(!card.answered && !$("#verdict").textContent) setAnswerLine(card.type === "audio" ? "Recording removed" : "Image removed", "", "");
-  if(card.items.length){ stopAudio(); card.soundAdded = false; $("#stage").replaceChildren(); renderStage(); }
-  else { diag(`no ${card.type} left for ${card.sp.name}`); nextCard(); }
+  /* a flagged photo or recording ends the card: move on to the next bird, without counting it as an answer */
+  stopAudio(); nextCard();
 });
 
 async function nextCard(){
