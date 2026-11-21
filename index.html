@@ -875,8 +875,15 @@ async function shrinkPhoto(blob){
 }
 
 /* Per trip: which birds have their photos and their audio saved, and the total size. */
-function offKey(trip = S.trip){ return "bf.off2." + trip; }
-function offRecord(trip = S.trip){ return LS.get(offKey(trip), { photo:[], audio:[], bytes:0, date:0 }); }
+/* The record is tied to how much is saved per bird; when that grows (3 → 15 photos, 2 → 5 recordings), the old record
+   no longer counts, and birds are checked against what's actually stored. The running size total carries over. */
+const OFF_RECORD = "bf.off3.";
+function offKey(trip = S.trip){ return OFF_RECORD + trip; }
+function offRecord(trip = S.trip){
+  const r = LS.get(offKey(trip), null); if(r) return r;
+  const old = LS.get("bf.off2." + trip, null);
+  return { photo:[], audio:[], bytes:(old && old.bytes) || 0, date:0 };
+}
 function fmtMB(b){ return b > 1e9 ? (b/1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b/1e6)) + " MB"; }
 function wantedTypes(mode){ return mode === "mixed" || mode === "both" ? ["photo","audio"] : [mode]; }
 /* Files actually stored on this device, so earlier downloads count whatever setting or version saved them. */
@@ -1001,7 +1008,7 @@ $("#offStop").addEventListener("click", () => { if(offAbort) offAbort.abort(); }
 $("#offDel").addEventListener("click", async () => {
   if(canCache) await caches.delete(MEDIA_CACHE);
   cachedSet = new Set();
-  for(const t of Object.keys(TRIPS)) LS.del(offKey(t));
+  for(const t of Object.keys(TRIPS)){ LS.del(offKey(t)); LS.del("bf.off2." + t); }
   renderOffline();
 });
 addEventListener("online", () => { $("#offPill").hidden = true; renderOffline(); });
