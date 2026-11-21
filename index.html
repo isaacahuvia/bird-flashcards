@@ -212,9 +212,6 @@ button.gold svg{width:18px;height:18px;flex:none}
           <div class="fam-list" id="famList"></div>
         </details>
       </div>
-      <div class="wide">
-        <label class="check"><input type="checkbox" id="forceRecall"> Always ask me to recall the name (skip multiple choice)</label>
-      </div>
     </div>
     <div>
       <div class="row">
@@ -485,10 +482,10 @@ function renderDeckInfo(){
   el.appendChild(b);
 }
 function readPicker(){
-  S.area = $("#area").value; S.mode = $("#mode").value; S.forceRecall = $("#forceRecall").checked; S.tier = Number($("#tier").value);
-  LS.set("bf.mode", S.mode); LS.set("bf.forceRecall", S.forceRecall); LS.set("bf.tier", $("#tier").value); LS.set("bf.area."+S.trip, S.area);
+  S.area = $("#area").value; S.mode = $("#mode").value; S.tier = Number($("#tier").value);
+  LS.set("bf.mode", S.mode); LS.set("bf.tier", $("#tier").value); LS.set("bf.area."+S.trip, S.area);
 }
-for(const id of ["area","tier","mode","forceRecall"]) $("#"+id).addEventListener("change", () => { readPicker(); renderFamilies(); renderOffline(); renderDrillButton(); });
+for(const id of ["area","tier","mode"]) $("#"+id).addEventListener("change", () => { readPicker(); renderFamilies(); renderOffline(); renderDrillButton(); });
 
 /* ---------- families ---------- */
 /* The chosen families per trip; null means all. */
@@ -1011,7 +1008,7 @@ function tierOf(sp, srs = S.srs){ const s = srs[sp.code]; return s ? migrate(s).
 function streakUp(st){ st.n++; const d = dayKey(); if(!st.days.includes(d)) st.days.push(d); return st.n >= STREAK && st.days.length >= STREAK_DAYS; }
 /* Which kind of card this bird gets now. */
 function cardFormat(sp){
-  if(S.drill || S.forceRecall) return "recall";
+  if(S.drill) return "recall";
   const s = st(sp); if(!s) return "easy";
   if(s.tier >= 1) return "recall";
   return s.phase === "hard" ? "hard" : "easy";
@@ -1460,7 +1457,6 @@ document.addEventListener("keydown", e => {
   S.area = LS.get("bf.area."+S.trip, "all");
   $("#tier").value = ["0.25","0.10","0.03"].includes(LS.get("bf.tier","0.10")) ? LS.get("bf.tier","0.10") : "0.03";
   $("#mode").value = LS.get("bf.mode","mixed");
-  $("#forceRecall").checked = !!LS.get("bf.forceRecall", false);
   renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); renderDrillButton();
   refreshCachedSet().then(renderOffline);
   show(S.keys ? "setup" : "lock");
