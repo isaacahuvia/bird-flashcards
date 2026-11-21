@@ -304,7 +304,7 @@ const EBIRD = "https://api.ebird.org/v2";
 const INAT = "https://api.inaturalist.org/v1";
 const XC = "https://xeno-canto.org/api/3/recordings";
 const WIKI = "https://en.wikipedia.org/w/api.php";
-const DECK_VERSION = 3, MEDIA_VERSION = 5, WIKI_VERSION = 2;
+const DECK_VERSION = 3, MEDIA_VERSION = 6, WIKI_VERSION = 2;
 const MEDIA_CACHE = "bf-media-v1";
 const range = (a, b) => Array.from({length:b-a+1}, (_, i) => a + i);
 
@@ -682,24 +682,22 @@ async function getPhotos(sp){
   const id = await inatTaxonId(sp); if(!id) return [];
   const out = [], seen = new Set();
   const big = p => { const d = p.original_dimensions; return !d || Math.max(d.width, d.height) >= MIN_LONG_SIDE; };
-  const add = (p, link) => { if(!p || !p.url || seen.has(p.id) || !big(p)) return; seen.add(p.id);
-    out.push({ src:p.url.replace(/\/(square|small|medium|thumb)\./, "/large."), link }); };
-  try{
-    const t = await getJSON(`${INAT}/taxa/${id}`);
-    for(const tp of (t.results[0] && t.results[0].taxon_photos) || []) add(tp.photo, `https://www.inaturalist.org/photos/${tp.photo.id}`);
-  }catch(e){ diag(`iNat taxon photos ${sp.name}: ${e.message}`); }
-  try{
-    const o = await getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&captive=false&order_by=votes&per_page=40`);
-    let dropped = 0;
-    for(const ob of o.results){
-      if((ob.faves_count || 0) < 1) continue;
-      const tagged = (ob.annotations || []).some(a => NOT_A_LIVE_BIRD.has(a.controlled_value_id));
-      if(tagged || /\b(nests?|nesting|eggs?|clutch)\b/i.test(ob.description || "")){ dropped++; continue; }
-      add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`);
-    }
-    if(dropped) diag(`photos: dropped ${dropped} egg/nest/dead for ${sp.name}`);
-  }catch(e){ diag(`iNat obs photos ${sp.name}: ${e.message}`); }
-  return out.slice(0, 15);
+  const add = (p, link, cat) => { if(!p || !p.url || seen.has(p.id) || !big(p)) return false; seen.add(p.id);
+    out.push({ src:p.url.replace(/\/(square|small|medium|thumb)\./, "/large."), link, cat }); return true; };
+  const liveBird = ob => !(ob.annotations || []).some(a => NOT_A_LIVE_BIRD.has(a.controlled_value_id)) && !/\b(nests?|nesting|eggs?|clutch)\b/i.test(ob.description || "");
+  const obs = q => getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&captive=false&order_by=votes&per_page=30${q}`).then(o => o.results).catch(e => { diag(`iNat photos ${sp.name}: ${e.message}`); return []; });
+  /* featured photos, then up to 5 each tagged male, female and juvenile (most-favorited first), then other favorited photos */
+  const [taxon, male, female, juv, faved] = await Promise.all([
+    getJSON(`${INAT}/taxa/${id}`).catch(e => { diag(`iNat taxon photos ${sp.name}: ${e.message}`); return null; }),
+    obs("&term_id=9&term_value_id=11"), obs("&term_id=9&term_value_id=10"), obs("&term_id=1&term_value_id=8"), obs("")
+  ]);
+  for(const tp of (taxon && taxon.results[0] && taxon.results[0].taxon_photos) || []) add(tp.photo, `https://www.inaturalist.org/photos/${tp.photo.id}`, "featured");
+  for(const [cat, list] of [["male", male], ["female", female], ["juvenile", juv]]){
+    let n = 0;
+    for(const ob of list){ if(n >= 5) break; if(liveBird(ob) && add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, cat)) n++; }
+  }
+  for(const ob of faved){ if((ob.faves_count || 0) >= 1 && liveBird(ob)) add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, "faved"); }
+  return out.slice(0, 40);
 }
 
 /* High-quality audio only, from xeno-canto:
@@ -847,10 +845,34 @@ async function cachedURL(src){
 }
 /* Only items whose files can be stored (iNaturalist open-data photos and xeno-canto audio both allow it). */
 const storable = it => /inaturalist-open-data\.s3\.amazonaws\.com|xeno-canto\.org/.test(it.src);
-const OFF_PHOTOS = 3, OFF_AUDIO = 2;
+const OFF_PHOTOS = 15, OFF_AUDIO = 5;
 const OFF_MAX_BYTES = { photo:1.5e6, audio:2.5e6 };
-const PER_BIRD = { photo:1e6, audio:1.2e6 };
+const PER_BIRD = { photo:1.5e6, audio:4e6 };
 let offAbort = null;
+
+/* Photos to save offline, in order: up to 5 each male, female and juvenile, then featured and other favorited photos.
+   Recordings: shortest first. */
+function offlinePick(items, type, n){
+  const st = items.filter(storable);
+  if(type === "audio") return st.slice().sort((a, b) => (a.secs || 99) - (b.secs || 99)).slice(0, n);
+  const by = c => st.filter(it => it.cat === c);
+  const first = [...by("male").slice(0, 5), ...by("female").slice(0, 5), ...by("juvenile").slice(0, 5)];
+  const rest = st.filter(it => !first.includes(it));
+  return [...first, ...rest].slice(0, n);
+}
+/* Saved photos are re-encoded to at most 1000 px on the long side (sharp on a phone, which shows them at about 700 px)
+   as good-quality JPEG; that's usually a third of the original size. Recordings are saved as they are. */
+async function shrinkPhoto(blob){
+  try{
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    if(bmp.close) bmp.close();
+    const out = await new Promise(res => c.toBlob(res, "image/jpeg", 0.82));
+    return out && out.size < blob.size ? out : blob;
+  }catch(e){ return blob; }
+}
 
 /* Per trip: which birds have their photos and their audio saved, and the total size. */
 function offKey(trip = S.trip){ return "bf.off2." + trip; }
@@ -897,7 +919,7 @@ function renderOffline(){
   if(offAbort){ btn.hidden = true; return; }
   const deck = cachedDeck();
   if(!deck){
-    info.textContent = "Saves photos, audio and clues for the birds selected above, about 1–2 MB per bird. The bird list is built first. Use Wi-Fi.";
+    info.textContent = "Saves photos, audio and clues for the birds selected above, about 5 MB per bird. The bird list is built first. Use Wi-Fi.";
     btn.hidden = false; btn.textContent = "Download this deck"; btn.disabled = !online(); return;
   }
   const m = missingFor(deck, mode);
@@ -945,15 +967,15 @@ async function downloadDeck(){
         for(const type of need){
           /* Candidates in order; audio shortest first. A file over the size cap is skipped while other candidates remain. */
           const want = type === "photo" ? OFF_PHOTOS : OFF_AUDIO;
-          const cands = (await getMedia(sp, type)).filter(storable)
-            .sort((a, b) => type === "audio" ? (a.secs||99) - (b.secs||99) : 0).slice(0, want + 4);
+          const cands = offlinePick(await getMedia(sp, type), type, want + 4);
           let saved = 0;
           for(let i = 0; i < cands.length && saved < want && !signal.aborted; i++){
             const it = cands[i];
             if(await cache.match(it.src)){ saved++; if(cachedSet) cachedSet.add(it.src); continue; }
             const r = await fetch(it.src, { signal });
             if(!r.ok) continue;
-            const blob = await r.blob();
+            let blob = await r.blob();
+            if(type === "photo") blob = await shrinkPhoto(blob);
             if(blob.size > OFF_MAX_BYTES[type] && cands.length - i - 1 >= want - saved) continue;
             await cache.put(it.src, new Response(blob, { headers:{ "Content-Type": blob.type || (type === "photo" ? "image/jpeg" : "audio/mpeg") } }));
             bytes += blob.size; saved++; if(cachedSet) cachedSet.add(it.src);
@@ -1184,7 +1206,7 @@ async function nextCard(){
 function renderStage(){
   const { sp, type, items } = S.cur; const stage = $("#stage");
   const searchLink = type === "photo" ? { href:`https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sp.sci)}`, text:"Look it up on iNaturalist" } : { href:`https://xeno-canto.org/explore?query=${encodeURIComponent(sp.sci)}`, text:"Look it up on xeno-canto" };
-  const card = S.cur, order = shuffle(items.slice());
+  const card = S.cur, order = freshestFirst(items);
   const next = async () => {
     if(S.cur !== card) return;
     const it = order.shift();
@@ -1200,7 +1222,7 @@ function renderStage(){
     if(type === "photo"){
       const img = new Image(); img.alt = "Bird to identify";
       img.onerror = () => { diag("photo failed: " + it.src); next(); };
-      img.onload = () => fitPhoto(img, stage);
+      img.onload = () => { fitPhoto(img, stage); markShown(it.src); };
       /* mirror half the photos at random, so you learn the bird rather than the picture */
       if(Math.random() < 0.5) img.style.transform = "scaleX(-1)";
       img.src = src;
@@ -1212,12 +1234,21 @@ function renderStage(){
       const lab = document.createElement("div"); lab.className = "audio-label"; lab.textContent = "Listen and identify";
       audioEl = document.createElement("audio"); audioEl.controls = true; audioEl.preload = "auto";
       audioEl.onerror = () => { diag("audio failed: " + it.src); next(); };
-      audioEl.src = src;
+      audioEl.src = src; audioEl.onloadedmetadata = () => markShown(it.src);
       wrap.append(lab, audioEl); stage.replaceChildren(wrap);
       audioEl.play().catch(() => {});
     }
   };
   next();
+}
+
+/* Rotation: the photo or recording shown least recently comes first (never-shown ones before all others, in random order). */
+const SHOWN_KEY = "bf.shown";
+function freshestFirst(items){ const shown = LS.get(SHOWN_KEY, {}); return shuffle(items.slice()).sort((a, b) => (shown[a.src] || 0) - (shown[b.src] || 0)); }
+function markShown(src){
+  const m = LS.get(SHOWN_KEY, {}); m[src] = Date.now();
+  const keys = Object.keys(m); if(keys.length > 6000) keys.sort((a, b) => m[a] - m[b]).slice(0, keys.length - 5000).forEach(k => delete m[k]);
+  LS.set(SHOWN_KEY, m);
 }
 
 /* Fill the box when that crops little: up to a quarter off the top and bottom, or a tenth off the sides; otherwise show the whole photo. */
@@ -1228,7 +1259,7 @@ function fitPhoto(img, stage){
 }
 /* A recording laid over the bottom of the photo, trying the bird's recordings in turn until one loads. */
 async function addSound(card, stage){
-  const order = shuffle(card.sound.slice());
+  const order = freshestFirst(card.sound);
   const bar = document.createElement("div"); bar.className = "sound";
   audioEl = document.createElement("audio"); audioEl.controls = true; audioEl.preload = "auto";
   bar.append(audioEl); stage.append(bar);
@@ -1243,7 +1274,7 @@ async function addSound(card, stage){
     }
     const local = await cachedURL(it.src); if(local) objectURLs.push(local);
     if(S.cur !== card) return;
-    audioEl.src = local || it.src; audioEl.play().catch(() => {});
+    audioEl.src = local || it.src; audioEl.onloadedmetadata = () => markShown(it.src); audioEl.play().catch(() => {});
   };
   audioEl.onerror = () => { diag("audio failed: " + audioEl.src); tryNext(); };
   tryNext();
