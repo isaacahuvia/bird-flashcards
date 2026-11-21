@@ -195,10 +195,9 @@ button.gold svg{width:18px;height:18px;flex:none}
       <div>
         <label for="tier">Include birds</label>
         <select id="tier">
-          <option value="0.25">Common (on 25%+ of days)</option>
-          <option value="0.10">Regular (10%+ of days)</option>
-          <option value="0.03">Uncommon too (3%+)</option>
-          <option value="0">Everything reported</option>
+          <option value="0.25">Common (reported on 25% of days)</option>
+          <option value="0.10">Uncommon (reported on 10% of days)</option>
+          <option value="0.03">Rare (reported on 3% of days)</option>
         </select>
       </div>
       <div>
@@ -242,9 +241,9 @@ button.gold svg{width:18px;height:18px;flex:none}
       <summary>How it works</summary>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
         <p class="hint">The bird list comes from eBird reports for your trip dates across past years. Photos are iNaturalist featured photos and favorited research-grade photos at least 1000 px wide, without egg, nest or dead-bird photos. Audio is xeno-canto recordings graded A (B only where A is scarce), 3 seconds to 3 minutes, with at most one other bird in the background.</p>
-        <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days (Tr Trinidad, To Tobago; Fo La Fortuna, Mo Monteverde, Do San Gerardo de Dota). Common, uncommon, rare: reported on 40%+, 10–40%, or under 10% of days in the area you picked. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
+        <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days (Tr Trinidad, To Tobago; Fo La Fortuna, Mo Monteverde, Do San Gerardo de Dota). How often: Common, reported on 25% or more of days in the area you picked; Uncommon, 10–25%; Rare, under 10%. The deck settings use the same words: each includes every bird down to that level. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
         <p class="hint"><b>Levels.</b> Every bird starts as <b>Familiar</b>, answered by picking from four names that look unlike it. After 2 right in a row, the wrong answers become similar birds (same family where possible). <b>Recognized</b>: 5 right in a row among similar birds, spread over at least 2 days. Recognized birds are then asked by recall: you name the bird yourself, tap Reveal, and mark Got it or Missed it. <b>Known</b> (learned): 5 recalls right in a row over at least 2 days. A miss drops a bird one level. Until a bird is Known it comes back within a few cards and then daily; Known birds come back after 1, 3, 7 and 14 days.</p>
-        <p class="hint"><b>Drills.</b> When every Common bird in an area is Known, gold Drills unlock for that area; the icon upgrades when every Regular bird, and then every Uncommon bird, is Known too. Drills go through all your Known birds there in random order, by recall. A miss is a strike; 3 strikes and the bird drops back to Recognized.</p>
+        <p class="hint"><b>Drills.</b> When every Common bird in an area is Known, gold Drills unlock for that area; the icon upgrades when every Uncommon bird, and then every Rare bird, is Known too. Drills go through all your Known birds there in random order, by recall. A miss is a strike; 3 strikes and the bird drops back to Recognized.</p>
         <p class="hint">On a phone, add this page to your home screen and use it from there; the home-screen app keeps its own downloads and progress.</p>
         <p class="hint"><button class="link" id="forget">Lock this device</button> (removes the saved keys; you'll need the password again).</p>
       </div>
@@ -801,7 +800,8 @@ function rangeClue(sp){
   if(!inArea.length){ const best = T.rangeAreas.slice().sort((a, b) => pct(sp, b[0]) - pct(sp, a[0]))[0]; return pct(sp, best[0]) > 0 ? best[1] : "—"; }
   return inArea.map(a => a[1]).join(inArea.length > 2 ? "+" : " + ");
 }
-function freqClue(sp){ const p = pct(sp, S.area); return p >= 40 ? "Common" : p >= 10 ? "Uncommon" : "Rare"; }
+/* Same cutoffs as the deck settings: Common 25%+, Uncommon 10–25%, Rare under 10% of days. */
+function freqClue(sp){ const p = pct(sp, S.area); return p >= 25 ? "Common" : p >= 10 ? "Uncommon" : "Rare"; }
 function earliest(text, words){
   /* earliest mention wins; at the same spot the longer phrase wins ("forest edge" → edge) */
   let best = null, at = Infinity, len = 0;
@@ -1307,7 +1307,7 @@ function renderStats(){
 }
 
 /* ---------- Drills ----------
-   Unlock per area: level 1 when every Common bird there is Known, 2 when every Regular bird is, 3 when every bird
+   Unlock per area: level 1 when every Common bird there is Known, 2 when every Uncommon bird is, 3 when every bird
    down to Uncommon is. Drills always cover every Known bird in the area (any frequency, any family), shuffled, by
    recall. A miss is a strike; on the third the bird drops to Recognized and returns to normal review. */
 const DRILL_TIERS = [0.25, 0.10, 0.03];
@@ -1316,7 +1316,7 @@ const DRILL_ICONS = [
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.3-2.3L2 20"/><path d="M20 7l2 .5-2 .5"/><path d="M10 18v3M14 17.5V21"/></svg>',
   '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4.5 4L12 4l4.5 8L21 8l-2 11H5z"/><path d="M5 21h14" fill="none" stroke-linecap="round"/></svg>'
 ];
-const DRILL_NAMES = ["Common", "Regular", "Uncommon"];
+const DRILL_NAMES = ["Common", "Uncommon", "Rare"];
 function drillLevel(deck, area, srs){
   let level = 0;
   DRILL_TIERS.forEach((t, i) => { const birds = deckSpecies(deck, area, t); if(birds.length && birds.every(sp => tierOf(sp, srs) === 2)) level = i + 1; });
@@ -1458,7 +1458,7 @@ document.addEventListener("keydown", e => {
   S.keys = LS.get("bf.keys", null);
   S.trip = LS.get("bf.trip","tt"); if(!TRIPS[S.trip]) S.trip = "tt";
   S.area = LS.get("bf.area."+S.trip, "all");
-  $("#tier").value = LS.get("bf.tier","0.10");
+  $("#tier").value = ["0.25","0.10","0.03"].includes(LS.get("bf.tier","0.10")) ? LS.get("bf.tier","0.10") : "0.03";
   $("#mode").value = LS.get("bf.mode","mixed");
   $("#forceRecall").checked = !!LS.get("bf.forceRecall", false);
   renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); renderDrillButton();

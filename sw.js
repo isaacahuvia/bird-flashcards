@@ -1,6 +1,6 @@
 /* Keeps the app itself available offline. Photos and recordings are stored separately by the page
    (cache "bf-media-v1"); this worker leaves that cache alone and never touches API requests. */
-const SHELL = "bf-shell-v7";
+const SHELL = "bf-shell-v8";
 const FONTS = "bf-fonts-v1";
 const SHELL_FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
