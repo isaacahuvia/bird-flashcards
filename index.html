@@ -297,7 +297,7 @@ button.gold svg{width:18px;height:18px;flex:none}
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ if(typeof diag === "function") diag("could not save " + k + ": " + e.message); } },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 const EBIRD = "https://api.ebird.org/v2";
@@ -697,6 +697,8 @@ async function getPhotos(sp){
     for(const ob of list){ if(n >= 5) break; if(liveBird(ob) && add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, cat)) n++; }
   }
   for(const ob of faved){ if((ob.faves_count || 0) >= 1 && liveBird(ob)) add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, "faved"); }
+  /* little-photographed birds: top up with other research-grade photos (still large, live birds) so there's variety */
+  for(const ob of faved){ if(out.length >= 12) break; if((ob.faves_count || 0) < 1 && liveBird(ob)) add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, "other"); }
   return out.slice(0, 40);
 }
 
@@ -731,6 +733,54 @@ async function getAudio(sp){
   return mixed.map(r => ({ src:r.file, secs:secs(r.length), link:r.url || `https://xeno-canto.org/${r.id}` }));
 }
 
+/* ---------- Roomy storage ----------
+   Photo and recording lists, Wikipedia text and the record of what you've seen are kept in the browser's cache storage
+   (the same large space as downloads), not in localStorage, whose ~5 MB limit a downloaded deck's lists can fill. */
+const KV = "bf-kv-v1";
+const kvMem = new Map();
+const kvURL = key => new URL("kv/" + encodeURIComponent(key), location.href).href;
+async function kvGet(key){
+  if(kvMem.has(key)) return kvMem.get(key);
+  if(!canCache) return LS.get("bf." + key, null);
+  let v = null;
+  try{ const r = await (await caches.open(KV)).match(kvURL(key)); v = r ? await r.json() : null; }catch(e){}
+  kvMem.set(key, v); return v;
+}
+async function kvSet(key, val){
+  kvMem.set(key, val);
+  if(!canCache) return LS.set("bf." + key, val);
+  try{ await (await caches.open(KV)).put(kvURL(key), new Response(JSON.stringify(val), { headers:{ "Content-Type":"application/json" } })); }
+  catch(e){ diag("could not save " + key + ": " + e.message); }
+}
+/* Load every saved list into memory (used to tell which birds are already downloaded). */
+async function kvLoadAll(prefix){
+  if(!canCache) return;
+  try{
+    const c = await caches.open(KV);
+    for(const req of await c.keys()){
+      const key = decodeURIComponent(req.url.split("/kv/")[1] || "");
+      if(!key.startsWith(prefix) || kvMem.has(key)) continue;
+      const r = await c.match(req); kvMem.set(key, r ? await r.json() : null);
+    }
+  }catch(e){}
+}
+/* One-time move out of localStorage: current lists and texts go to roomy storage; outdated ones are deleted. */
+async function moveOutOfLocalStorage(){
+  if(!canCache) return;
+  const keys = []; try{ for(let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i)); }catch(e){ return; }
+  let moved = 0, dropped = 0;
+  for(const k of keys){
+    const m = k.match(/^bf\.(m\d+|w\d+)\.(.+)$/);
+    if(m){
+      const current = m[1] === "m" + MEDIA_VERSION || m[1] === "w" + WIKI_VERSION;
+      if(current){ await kvSet(m[1] + "." + m[2], LS.get(k, null)); moved++; } else dropped++;
+      LS.del(k); continue;
+    }
+    if(k === "bf.shown"){ const old = LS.get(k, {}); const cur = (await kvGet("shown")) || {}; await kvSet("shown", Object.assign(old, cur)); LS.del(k); moved++; }
+  }
+  if(moved || dropped) diag(`storage: moved ${moved} items to roomy storage, deleted ${dropped} outdated`);
+}
+
 /* Photos and recordings you've flagged are never shown again, on any deck. */
 const hiddenMedia = () => new Set(LS.get("bf.hidden", []));
 async function getMedia(sp, type){
@@ -740,13 +790,13 @@ async function getMedia(sp, type){
 async function getMediaAll(sp, type){
   const k = `${sp.code}|${type}`;
   if(S.mediaCache.has(k)) return S.mediaCache.get(k);
-  const lsKey = `bf.m${MEDIA_VERSION}.${k}`;
-  const stored = LS.get(lsKey, null);
+  const lsKey = `m${MEDIA_VERSION}.${k}`;
+  const stored = await kvGet(lsKey);
   if(Array.isArray(stored) && stored.length){ S.mediaCache.set(k, stored); return stored; }
   /* An empty result is remembered for 3 days, so a passing network problem doesn't hide a bird for good. */
   if(stored && stored.empty && Date.now() - stored.empty < 3*864e5){ S.mediaCache.set(k, []); return []; }
   if(!online()) return [];
-  const p = (type === "photo" ? getPhotos(sp) : getAudio(sp)).then(list => { LS.set(lsKey, list.length ? list : { empty:Date.now() }); return list; });
+  const p = (type === "photo" ? getPhotos(sp) : getAudio(sp)).then(async list => { await kvSet(lsKey, list.length ? list : { empty:Date.now() }); return list; });
   S.mediaCache.set(k, p);
   const list = await p; S.mediaCache.set(k, list); return list;
 }
@@ -772,8 +822,8 @@ function wikiText(text){
   return { hab:habS.join(" "), beh:beh.slice(0, 4).join(" ") };
 }
 async function getFacts(sp){
-  const k = `bf.w${WIKI_VERSION}.${sp.code}`;
-  const c = LS.get(k, null); if(c) return c;
+  const k = `w${WIKI_VERSION}.${sp.code}`;
+  const c = await kvGet(k); if(c) return c;
   if(!online()) return null;
   let facts = { hab:"", beh:"" };
   try{
@@ -783,7 +833,7 @@ async function getFacts(sp){
       if(p && p.extract && p.extract.length > 200){ facts = wikiText(p.extract); break; }
     }
   }catch(e){ diag(`Wikipedia ${sp.name}: ${e.message}`); return null; }
-  LS.set(k, facts);
+  await kvSet(k, facts);
   return facts;
 }
 
@@ -890,13 +940,13 @@ function wantedTypes(mode){ return mode === "mixed" || mode === "both" ? ["photo
 let cachedSet = null;
 function refreshCachedSet(){
   if(!canCache) return Promise.resolve();
-  return caches.open(MEDIA_CACHE).then(c => c.keys()).then(ks => { cachedSet = new Set(ks.map(r => r.url)); }).catch(() => {});
+  return kvLoadAll(`m${MEDIA_VERSION}.`).then(() => caches.open(MEDIA_CACHE)).then(c => c.keys()).then(ks => { cachedSet = new Set(ks.map(r => r.url)); }).catch(() => {});
 }
 /* A bird's photos (or audio) count as downloaded if the record says so, or if enough of its known files are already stored. */
 function hasType(sp, type, have){
   if(have[type].has(sp.code)) return true;
   if(!cachedSet) return false;
-  const list = LS.get(`bf.m${MEDIA_VERSION}.${sp.code}|${type}`, null);
+  const list = kvMem.get(`m${MEDIA_VERSION}.${sp.code}|${type}`);
   if(list && list.empty) return true;               /* looked up already: nothing of this kind exists */
   if(!Array.isArray(list)) return false;
   const hidden = hiddenMedia();
@@ -1248,12 +1298,12 @@ function renderStage(){
 }
 
 /* Rotation: the photo or recording shown least recently comes first (never-shown ones before all others, in random order). */
-const SHOWN_KEY = "bf.shown";
-function freshestFirst(items){ const shown = LS.get(SHOWN_KEY, {}); return shuffle(items.slice()).sort((a, b) => (shown[a.src] || 0) - (shown[b.src] || 0)); }
+let shownMap = {};
+function freshestFirst(items){ return shuffle(items.slice()).sort((a, b) => (shownMap[a.src] || 0) - (shownMap[b.src] || 0)); }
 function markShown(src){
-  const m = LS.get(SHOWN_KEY, {}); m[src] = Date.now();
-  const keys = Object.keys(m); if(keys.length > 6000) keys.sort((a, b) => m[a] - m[b]).slice(0, keys.length - 5000).forEach(k => delete m[k]);
-  LS.set(SHOWN_KEY, m);
+  shownMap[src] = Date.now();
+  const keys = Object.keys(shownMap); if(keys.length > 12000) keys.sort((a, b) => shownMap[a] - shownMap[b]).slice(0, keys.length - 10000).forEach(k => delete shownMap[k]);
+  kvSet("shown", shownMap);
 }
 
 /* Fill the box when that crops little: up to a quarter off the top and bottom, or a tenth off the sides; otherwise show the whole photo. */
@@ -1496,7 +1546,7 @@ document.addEventListener("keydown", e => {
   $("#tier").value = ["0.25","0.10","0.03"].includes(LS.get("bf.tier","0.10")) ? LS.get("bf.tier","0.10") : "0.03";
   $("#mode").value = LS.get("bf.mode","mixed");
   renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); renderDrillButton();
-  refreshCachedSet().then(renderOffline);
+  moveOutOfLocalStorage().then(() => kvGet("shown")).then(m => { shownMap = Object.assign(m || {}, shownMap); }).then(refreshCachedSet).then(renderOffline);
   show(S.keys ? "setup" : "lock");
   if("serviceWorker" in navigator && location.protocol === "https:"){
     const hadController = !!navigator.serviceWorker.controller;
