@@ -30,9 +30,10 @@
   /* top padding clears the phone's status bar (time, battery) with room to spare */
   --pad-top:calc(env(safe-area-inset-top, 0px) + 20px); --pad-bottom:max(14px, env(safe-area-inset-bottom));
   --warn:#9A6A12;
+  --gold:#A67C1A; --gold-bg:#F4E5B8; --gold-ink:#4A3508; --fam:#9CC9D6;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#0C151B; --panel:#131F27; --ink:#E6EEF2; --ink2:#93A5B0; --rule:#26363F; --accent:#4FB4D0; --accent-ink:#06222C; --good:#5FC08B; --miss:#E8836B; --stage:#060C10; --good-bg:#16301F; --miss-bg:#3A1D16; --bar:#22323C; --on-solid:#0C151B; --warn:#E0B060; color-scheme:dark}
+  :root{--bg:#0C151B; --panel:#131F27; --ink:#E6EEF2; --ink2:#93A5B0; --rule:#26363F; --accent:#4FB4D0; --accent-ink:#06222C; --good:#5FC08B; --miss:#E8836B; --stage:#060C10; --good-bg:#16301F; --miss-bg:#3A1D16; --bar:#22323C; --on-solid:#0C151B; --warn:#E0B060; --gold:#D9B44A; --gold-bg:#3A2E10; --gold-ink:#F2DC9A; --fam:#2F5C6A; color-scheme:dark}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -149,10 +150,20 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
 .rc-row{display:grid;grid-template-columns:1fr 74px 78px;gap:8px;align-items:center;padding:4px 0;font-size:14px}
 .rc-row .f{font-size:12px;color:var(--ink2)}
 .pill{justify-self:end;font:500 11px var(--mono);border-radius:999px;padding:2px 8px;border:1px solid var(--rule);color:var(--ink2);white-space:nowrap}
-.pill.learned{color:var(--good);border-color:var(--good)}
-.pill.learning{color:var(--accent);border-color:var(--accent)}
-.pill.missed{color:var(--miss);border-color:var(--miss)}
-.c-new{background:var(--rule)} .c-missed{background:var(--miss)} .c-learning{background:var(--accent)} .c-learned{background:var(--good)}
+.pill.known{color:var(--good);border-color:var(--good)}
+.pill.recognized{color:var(--accent);border-color:var(--accent)}
+.pill.familiar{color:var(--ink);border-color:var(--fam)}
+.strikes{font:500 11px var(--mono);color:var(--miss);margin-left:6px}
+.c-new{background:var(--rule)} .c-familiar{background:var(--fam)} .c-recognized{background:var(--accent)} .c-known{background:var(--good)}
+button.gold{background:var(--gold-bg);border-color:var(--gold);color:var(--gold-ink);display:inline-flex;align-items:center;gap:7px;font-weight:600}
+button.gold svg{width:18px;height:18px;flex:none}
+.check{display:flex!important;align-items:center;gap:10px;font:15px/1.35 var(--body)!important;text-transform:none!important;letter-spacing:0!important;color:var(--ink)!important;cursor:pointer;margin:0}
+.check input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}
+.rc-drills{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.rc-drills div{display:flex;gap:8px;align-items:center}
+.rc-drills svg{width:16px;height:16px;color:var(--gold);flex:none}
+.rc-drills .locked svg{color:var(--rule)}
+.rc-drills em{font-style:normal;color:var(--ink2);margin-left:auto;font-variant-numeric:tabular-nums}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink2)}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 @media (hover:none){.keys{display:none}}
@@ -203,14 +214,14 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
         </details>
       </div>
       <div class="wide">
-        <label for="style">Answer by</label>
-        <select id="style"><option value="choice">Picking from four names</option><option value="recall">Recalling the name</option></select>
+        <label class="check"><input type="checkbox" id="forceRecall"> Always ask me to recall the name (skip multiple choice)</label>
       </div>
     </div>
     <div>
       <div class="row">
         <button class="primary" id="start">Start</button>
         <button id="btnReport">Report card</button>
+        <button id="btnDrills" class="gold" hidden><span id="drillIcon"></span>Drills</button>
         <span class="status" id="status"></span>
       </div>
       <p class="hint" id="deckInfo"></p>
@@ -232,7 +243,8 @@ details pre{white-space:pre-wrap;word-break:break-all;font:12px var(--mono);back
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
         <p class="hint">The bird list comes from eBird reports for your trip dates across past years. Photos are iNaturalist featured photos and favorited research-grade photos at least 1000 px wide, without egg, nest or dead-bird photos. Audio is xeno-canto recordings graded A (B only where A is scarce), 3 seconds to 3 minutes, with at most one other bird in the background.</p>
         <p class="hint"><b>Clues.</b> Range: where on this trip the bird is reported on at least 5% of days (Tr Trinidad, To Tobago; Fo La Fortuna, Mo Monteverde, Do San Gerardo de Dota). Common, uncommon, rare: reported on 40%+, 10–40%, or under 10% of days in the area you picked. Habitat and where seen: from the bird's family and its Wikipedia article; they're automatic and can be off for some birds.</p>
-        <p class="hint"><b>Review.</b> New birds come in a few at a time, most common first. A bird you miss comes back after about 3 cards, then 6, then 15. Once you get it right 3 times running, it comes back a day later, then 3 days, a week, two weeks. Learned means right 4 times running, with the last at least a day after the others. A miss, or tapping Reveal, starts the bird over.</p>
+        <p class="hint"><b>Levels.</b> Every bird starts as <b>Familiar</b>, answered by picking from four names that look unlike it. After 2 right in a row, the wrong answers become similar birds (same family where possible). <b>Recognized</b>: 5 right in a row among similar birds, spread over at least 2 days. Recognized birds are then asked by recall: you name the bird yourself, tap Reveal, and mark Got it or Missed it. <b>Known</b> (learned): 5 recalls right in a row over at least 2 days. A miss drops a bird one level. Until a bird is Known it comes back within a few cards and then daily; Known birds come back after 1, 3, 7 and 14 days.</p>
+        <p class="hint"><b>Drills.</b> When every Common bird in an area is Known, gold Drills unlock for that area; the icon upgrades when every Regular bird, and then every Uncommon bird, is Known too. Drills go through all your Known birds there in random order, by recall. A miss is a strike; 3 strikes and the bird drops back to Recognized.</p>
         <p class="hint">On a phone, add this page to your home screen and use it from there; the home-screen app keeps its own downloads and progress.</p>
         <p class="hint"><button class="link" id="forget">Lock this device</button> (removes the saved keys; you'll need the password again).</p>
       </div>
@@ -454,7 +466,7 @@ function renderTrips(){
   for(const [id, t] of Object.entries(TRIPS)){
     const b = document.createElement("button"); b.className = "trip"; b.setAttribute("aria-pressed", String(id === S.trip));
     b.innerHTML = `<b>${t.label}</b><span>${t.window}</span>`;
-    b.addEventListener("click", () => { S.trip = id; S.area = LS.get("bf.area."+id, "all"); LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); });
+    b.addEventListener("click", () => { S.trip = id; S.area = LS.get("bf.area."+id, "all"); LS.set("bf.trip", id); renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); renderDrillButton(); });
     $("#trips").appendChild(b);
   }
 }
@@ -474,10 +486,10 @@ function renderDeckInfo(){
   el.appendChild(b);
 }
 function readPicker(){
-  S.area = $("#area").value; S.mode = $("#mode").value; S.style = $("#style").value; S.tier = Number($("#tier").value);
-  LS.set("bf.mode", S.mode); LS.set("bf.style", S.style); LS.set("bf.tier", $("#tier").value); LS.set("bf.area."+S.trip, S.area);
+  S.area = $("#area").value; S.mode = $("#mode").value; S.forceRecall = $("#forceRecall").checked; S.tier = Number($("#tier").value);
+  LS.set("bf.mode", S.mode); LS.set("bf.forceRecall", S.forceRecall); LS.set("bf.tier", $("#tier").value); LS.set("bf.area."+S.trip, S.area);
 }
-for(const id of ["area","tier","mode","style"]) $("#"+id).addEventListener("change", () => { readPicker(); renderFamilies(); renderOffline(); });
+for(const id of ["area","tier","mode","forceRecall"]) $("#"+id).addEventListener("change", () => { readPicker(); renderFamilies(); renderOffline(); renderDrillButton(); });
 
 /* ---------- families ---------- */
 /* The chosen families per trip; null means all. */
@@ -629,17 +641,18 @@ $("#start").addEventListener("click", async () => {
     S.species = selectedFor(deck);
     if(!S.species.length) throw new Error("No birds match. Choose more families or a broader setting under Include birds.");
     if(S.pool.length < 4) throw new Error("Fewer than four birds match. Choose a broader setting under Include birds.");
-    S.srs = LS.get("bf.srs."+S.trip, {}); S.mediaCache = new Map(); S.noMedia = new Set(); S.session = {seen:0,got:0}; S.cur = null; S.last = [];
+    S.srs = loadSrs(); S.mediaCache = new Map(); S.noMedia = new Set(); S.session = {seen:0,got:0}; S.cur = null; S.last = [];
     const T = TRIPS[S.trip];
     const chosen = chosenFams();
     $("#where").textContent = `${T.label} · ${T.areas.find(a => a.id === S.area).label}` + (chosen ? ` · ${chosen.size === 1 ? [...chosen][0] : chosen.size + " families"}` : "");
-    $("#keyhelp").textContent = S.style === "choice" ? "Keys 1–4: pick. Space: reveal / next. R: replay." : "Space: reveal / next. ←: missed. →: got it. R: replay.";
+    S.drill = false;
+    $("#keyhelp").textContent = "1–4: pick · Space: reveal / next · ← missed · → got it · R: replay";
     show("study"); setStatus(""); renderOffline();
     await nextCard();
   }catch(e){ setStatus(e.message, true); }
   finally{ $("#start").disabled = false; }
 });
-$("#btnBack").addEventListener("click", () => { stopAudio(); S.cur = null; if(S.reloadWhenBack){ location.reload(); return; } show("setup"); renderOffline(); });
+$("#btnBack").addEventListener("click", () => { stopAudio(); S.cur = null; S.drill = false; renderDrillButton(); if(S.reloadWhenBack){ location.reload(); return; } show("setup"); renderOffline(); });
 
 /* ---------- Media ---------- */
 /* Map an eBird species to an iNaturalist taxon id by scientific name, falling back to the English name. */
@@ -975,9 +988,34 @@ $("#offDel").addEventListener("click", async () => {
 addEventListener("online", () => { $("#offPill").hidden = true; renderOffline(); });
 addEventListener("offline", () => { $("#offPill").hidden = false; renderOffline(); });
 
-/* ---------- Review scheduling ----------
-   Leitner-style boxes. Box 0 = just missed. Boxes 1–2 are learning steps measured in cards, so a missed bird returns
-   within the same session (after ~3, then 6, then 15 cards). Box 3+ are measured in days. Learned = box 4+. */
+/* ---------- Review scheduling and levels ----------
+   Timing: Leitner-style boxes. Boxes 0–2 are steps measured in cards (a bird returns after ~3, 6, then 15 cards);
+   box 3+ are measured in days (1, 3, 7, 14). Until a bird is Known its box is capped at 3, so it keeps coming back
+   daily, and each new stage starts again at box 0.
+   Levels (tier): 0 Familiar, 1 Recognized, 2 Known. Stage within Familiar: "easy" multiple choice (unlike birds as
+   wrong answers) until 2 right in a row, then "hard" (similar birds). Recognized: 5 hard right in a row over 2+ days.
+   Known: 5 recalls right in a row over 2+ days. A miss drops one level (or one stage). */
+const EASY_TO_HARD = 2, STREAK = 5, STREAK_DAYS = 2, STRIKES = 3;
+const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; };
+const fresh = () => ({ n:0, days:[] });
+/* Progress saved before levels existed: birds that were "learned" become Recognized; recall is still to prove. */
+function migrate(s){
+  if(s.tier !== undefined) return s;
+  s.tier = s.box >= 4 ? 1 : 0; s.phase = s.box >= 1 ? "hard" : "easy"; s.easy = 0; s.hard = fresh(); s.rec = fresh(); s.strikes = 0;
+  if(s.tier === 1 || s.phase === "hard"){ s.box = Math.min(s.box, 3); }
+  return s;
+}
+function loadSrs(trip = S.trip){ const srs = LS.get("bf.srs."+trip, {}); for(const k in srs) migrate(srs[k]); return srs; }
+const levelOf = s => !s ? "new" : ["familiar","recognized","known"][migrate(s).tier];
+function tierOf(sp, srs = S.srs){ const s = srs[sp.code]; return s ? migrate(s).tier : -1; }
+function streakUp(st){ st.n++; const d = dayKey(); if(!st.days.includes(d)) st.days.push(d); return st.n >= STREAK && st.days.length >= STREAK_DAYS; }
+/* Which kind of card this bird gets now. */
+function cardFormat(sp){
+  if(S.drill || S.forceRecall) return "recall";
+  const s = st(sp); if(!s) return "easy";
+  if(s.tier >= 1) return "recall";
+  return s.phase === "hard" ? "hard" : "easy";
+}
 const GAP_CARDS = [3, 6, 15];
 const DAYS = { 3:1, 4:3, 5:7, 6:14 };
 const MAX_LEARNING = 7;
@@ -1005,12 +1043,30 @@ function pickNext(){
   const rev = usable.filter(sp => st(sp)).sort((a, b) => st(a).due - st(b).due);
   return rev[0] || usable[0];
 }
-function record(sp, got){
+/* Returns a short note when the bird changes level ("Now Recognized", "Now Known", "Back to Familiar"…). */
+function record(sp, got, kind){
   const n = bump(), now = Date.now();
-  const s = S.srs[sp.code] || { box:0, due:0, gapAt:0, lapses:0, seen:0 };
-  s.seen++;
-  if(got){
-    s.box = Math.min(6, s.box + 1);
+  const s = migrate(S.srs[sp.code] || { box:0, due:0, gapAt:0, lapses:0, seen:0 });
+  s.seen++; s.missed = !got;
+  let note = "", restart = false;
+  if(kind === "easy"){
+    if(got){ s.easy = (s.easy || 0) + 1; if(s.easy >= EASY_TO_HARD && s.phase !== "hard"){ s.phase = "hard"; s.hard = fresh(); restart = true; } }
+    else { s.easy = 0; }
+  }else if(kind === "hard"){
+    if(got){ if(streakUp(s.hard) && s.tier < 1){ s.tier = 1; s.rec = fresh(); restart = true; note = "Now Recognized"; } }
+    else { s.hard = fresh(); s.phase = "easy"; s.easy = 0; }
+  }else if(kind === "recall"){
+    if(got){ if(streakUp(s.rec) && s.tier < 2){ s.tier = 2; s.strikes = 0; note = "Now Known"; } }
+    else {
+      s.rec = fresh();
+      if(s.tier === 2){ s.tier = 1; note = "Back to Recognized"; }
+      else if(s.tier === 1){ s.tier = 0; s.phase = "hard"; s.hard = fresh(); note = "Back to Familiar"; }
+      else { s.phase = "easy"; s.easy = 0; }
+    }
+  }
+  if(restart){ s.box = 0; s.gapAt = n + GAP_CARDS[0]; s.due = 0; }
+  else if(got){
+    s.box = Math.min(s.tier >= 2 ? 6 : 3, s.box + 1);
     if(s.box <= 2) s.gapAt = n + GAP_CARDS[s.box];
     else { s.due = now + (DAYS[s.box] || 14) * DAY - 2*3600e3; s.gapAt = 0; }
   }else{
@@ -1020,16 +1076,24 @@ function record(sp, got){
   LS.set("bf.srs."+S.trip, S.srs);
   S.session.seen++; if(got) S.session.got++;
   renderStats();
+  return note;
 }
 function chooseType(){ return S.mode === "mixed" ? (Math.random() < .5 ? "photo" : "audio") : S.mode === "both" ? "photo" : S.mode; }
 
-/* Three wrong options: same family first, then neighbours in taxonomic order, so the choices are plausible. */
-function distractors(sp){
+/* Three wrong options. Easy: birds from other families, unlike this one. Hard: similar birds, all from the same family
+   where possible, then its nearest relatives in taxonomic order. */
+function distractors(sp, fmt = "hard"){
   const others = (S.pool || S.species).filter(x => x.code !== sp.code);
+  if(fmt === "easy"){
+    const unlike = shuffle(others.filter(x => !sp.fam || x.fam !== sp.fam));
+    const out = []; const fams = new Set();
+    for(const x of unlike){ if(out.length === 3) break; if(fams.has(x.fam)) continue; fams.add(x.fam); out.push(x); }
+    for(const x of shuffle(others)){ if(out.length === 3) break; if(!out.includes(x)) out.push(x); }
+    return out;
+  }
   const fam = shuffle(others.filter(x => sp.fam && x.fam === sp.fam));
   const near = others.filter(x => !fam.includes(x)).sort((a, b) => Math.abs((a.ord||0) - (sp.ord||0)) - Math.abs((b.ord||0) - (sp.ord||0)));
-  /* when drilling chosen families, all three wrong answers come from the same family where possible */
-  const pool = [...fam.slice(0, chosenFams() ? 3 : 2), ...shuffle(near.slice(0, 8))];
+  const pool = [...fam.slice(0, 3), ...shuffle(near.slice(0, 5))];
   const out = []; for(const x of pool){ if(out.length === 3) break; if(!out.includes(x)) out.push(x); }
   for(const x of shuffle(others)){ if(out.length === 3) break; if(!out.includes(x)) out.push(x); }
   return out;
@@ -1088,14 +1152,13 @@ async function nextCard(){
   stopAudio(); freeURLs();
   S.cur = null;
   setAnswerLine(""); setButtons("ask"); $("#btnReveal").disabled = true;
-  $("#choices").hidden = S.style !== "choice";
   for(const b of $("#choices").children){ b.disabled = true; }
   for(const id of ["#cRange","#cHab","#cSeen","#cFreq"]) $(id).textContent = "";
   $("#offPill").hidden = online();
   $("#stage").replaceChildren(msg("Loading…"));
   let sp, type, items = [], sound = [];
   for(let tries = 0; tries < 10; tries++){
-    sp = pickNext();
+    sp = S.drill ? pickDrill() : pickNext();
     if(!sp) break;
     type = chooseType();
     items = await playable(await getMedia(sp, type));
@@ -1114,7 +1177,9 @@ async function nextCard(){
   const card = S.cur = { sp, type, items, sound, answered:false };
   renderStage();
   renderClues(card);
-  if(S.style === "choice") renderChoices();
+  card.fmt = cardFormat(sp);
+  $("#choices").hidden = card.fmt === "recall";
+  if(card.fmt !== "recall") renderChoices();
   $("#btnReveal").disabled = false;
   renderStats();
 }
@@ -1187,7 +1252,7 @@ async function addSound(card, stage){
 
 function renderChoices(){
   const { sp } = S.cur;
-  const opts = shuffle([sp, ...distractors(sp)]); S.cur.opts = opts;
+  const opts = shuffle([sp, ...distractors(sp, S.cur.fmt)]); S.cur.opts = opts;
   const box = $("#choices"); box.replaceChildren();
   opts.forEach((o, i) => {
     const b = document.createElement("button"); b.textContent = o.name; b.dataset.code = o.code; b.dataset.n = i + 1;
@@ -1203,16 +1268,16 @@ function choose(o){
   S.cur.answered = true;
   const right = o.code === S.cur.sp.code;
   markChoices(o.code);
-  record(S.cur.sp, right);
-  setAnswerLine(right ? "Correct" : "Not quite", right ? "ok" : "no", S.cur.sp.fam);
+  const note = record(S.cur.sp, right, S.cur.fmt);
+  setAnswerLine((right ? "Correct" : "Not quite") + (note ? " · " + note : ""), right ? "ok" : "no", S.cur.sp.fam);
   setButtons("next"); $("#btnNext").focus({preventScroll:true});
 }
 /* Reveal: show the answer without answering. In multiple choice this counts as a miss. */
 function revealNow(){
   if(!S.cur || S.cur.answered || S.cur.revealed) return;
-  if(S.style === "choice"){
-    S.cur.answered = true; markChoices(null); record(S.cur.sp, false);
-    setAnswerLine("Revealed", "no", S.cur.sp.fam);
+  if(S.cur.fmt !== "recall"){
+    S.cur.answered = true; markChoices(null); const note = record(S.cur.sp, false, S.cur.fmt);
+    setAnswerLine("Revealed" + (note ? " · " + note : ""), "no", S.cur.sp.fam);
     setButtons("next"); $("#btnNext").focus({preventScroll:true});
   }else{
     S.cur.revealed = true;
@@ -1222,25 +1287,90 @@ function revealNow(){
 }
 function grade(got){
   if(!S.cur || S.cur.answered) return;
-  S.cur.answered = true; record(S.cur.sp, got); nextCard();
+  S.cur.answered = true;
+  if(S.drill) return drillGrade(got);
+  const note = record(S.cur.sp, got, "recall");
+  /* a level change is worth a pause: show it, then Next */
+  if(note){ setAnswerLine(note, got ? "ok" : "no", S.cur.sp.name); setButtons("next"); $("#btnNext").focus({preventScroll:true}); return; }
+  nextCard();
 }
 
 function renderStats(){
-  let fresh = 0, learning = 0, learned = 0, due = 0; const now = Date.now();
-  for(const sp of S.species){
-    const s = st(sp);
-    if(!s) fresh++;
-    else if(s.box >= 4){ learned++; if(now >= s.due) due++; }
-    else { learning++; if(s.box >= 3 && now >= s.due) due++; }
+  if(S.drill){
+    const left = S.drillQueue ? S.drillQueue.length : 0;
+    $("#stats").innerHTML = `<b>${S.species.length}</b> Known birds · <b>${S.session.got}/${S.session.seen}</b> right · <b>${S.drillStrikes || 0}</b> strike${S.drillStrikes === 1 ? "" : "s"}`;
+    return;
   }
-  $("#stats").innerHTML = `Learned <b>${learned}</b>/${S.species.length} · Learning <b>${learning}</b> · New <b>${fresh}</b>${due ? ` · Due <b>${due}</b>` : ""} · Today <b>${S.session.got}/${S.session.seen}</b>`;
+  const c = { new:0, familiar:0, recognized:0, known:0 };
+  for(const sp of S.species) c[levelOf(st(sp))]++;
+  $("#stats").innerHTML = `Known <b>${c.known}</b>/${S.species.length} · Recognized <b>${c.recognized}</b> · Familiar <b>${c.familiar}</b> · New <b>${c.new}</b>`;
 }
+
+/* ---------- Drills ----------
+   Unlock per area: level 1 when every Common bird there is Known, 2 when every Regular bird is, 3 when every bird
+   down to Uncommon is. Drills always cover every Known bird in the area (any frequency, any family), shuffled, by
+   recall. A miss is a strike; on the third the bird drops to Recognized and returns to normal review. */
+const DRILL_TIERS = [0.25, 0.10, 0.03];
+const DRILL_ICONS = [
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4C11 4 6 9 5 19"/><path d="M5 19l-2 2"/><path d="M8 13h6M10 9h6"/><path d="M20 4c0 8-5 13-12 13"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.3-2.3L2 20"/><path d="M20 7l2 .5-2 .5"/><path d="M10 18v3M14 17.5V21"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4.5 4L12 4l4.5 8L21 8l-2 11H5z"/><path d="M5 21h14" fill="none" stroke-linecap="round"/></svg>'
+];
+const DRILL_NAMES = ["Common", "Regular", "Uncommon"];
+function drillLevel(deck, area, srs){
+  let level = 0;
+  DRILL_TIERS.forEach((t, i) => { const birds = deckSpecies(deck, area, t); if(birds.length && birds.every(sp => tierOf(sp, srs) === 2)) level = i + 1; });
+  return level;
+}
+function knownIn(deck, area, srs){ return deck.species.filter(sp => (sp.d[area] || 0) > 0 && tierOf(sp, srs) === 2); }
+function renderDrillButton(){
+  const btn = $("#btnDrills"), deck = cachedDeck();
+  if(!deck){ btn.hidden = true; return; }
+  const level = drillLevel(deck, $("#area").value, loadSrs());
+  btn.hidden = !level;
+  if(level){ $("#drillIcon").innerHTML = DRILL_ICONS[level - 1]; btn.title = `Unlocked: every ${DRILL_NAMES[level - 1]} bird here is Known`; }
+}
+function pickDrill(){
+  const usable = S.species.filter(sp => !S.noMedia.has(sp.code) && tierOf(sp) === 2);
+  if(!usable.length) return null;
+  if(!S.drillQueue || !S.drillQueue.length) S.drillQueue = shuffle(usable.map(sp => sp.code)).filter(c => c !== S.last[S.last.length - 1] || usable.length === 1);
+  while(S.drillQueue.length){ const code = S.drillQueue.shift(); const sp = usable.find(x => x.code === code); if(sp) return sp; }
+  return usable[0];
+}
+function drillGrade(got){
+  const sp = S.cur.sp, s = migrate(S.srs[sp.code]);
+  S.session.seen++; if(got) S.session.got++;
+  if(got){ LS.set("bf.srs."+S.trip, S.srs); renderStats(); return nextCard(); }
+  s.strikes = (s.strikes || 0) + 1; S.drillStrikes = (S.drillStrikes || 0) + 1;
+  let line;
+  if(s.strikes >= STRIKES){
+    s.tier = 1; s.strikes = 0; s.rec = fresh(); s.box = 0; s.gapAt = counter() + GAP_CARDS[0]; s.due = 0; s.missed = true;
+    S.species = S.species.filter(x => x.code !== sp.code);
+    line = "Strike 3 · out of Known";
+  }else line = `Strike ${s.strikes} of ${STRIKES}`;
+  LS.set("bf.srs."+S.trip, S.srs);
+  setAnswerLine(line, "no", sp.name); setButtons("next"); $("#btnNext").focus({preventScroll:true});
+  renderStats();
+}
+$("#btnDrills").addEventListener("click", async () => {
+  readPicker();
+  const deck = cachedDeck(); if(!deck) return;
+  S.deck = deck; S.srs = loadSrs();
+  S.pool = deckSpecies(deck, S.area, 0); S.species = knownIn(deck, S.area, S.srs);
+  if(!S.species.length) return setStatus("No Known birds here yet.", true);
+  S.drill = true; S.drillQueue = null; S.drillStrikes = 0; S.mediaCache = new Map(); S.noMedia = new Set(); S.session = {seen:0,got:0}; S.cur = null; S.last = [];
+  const T = TRIPS[S.trip];
+  $("#where").textContent = `Drills · ${T.label} · ${T.areas.find(a => a.id === S.area).label}`;
+  $("#keyhelp").textContent = "Space: reveal · ← missed · → got it · R: replay";
+  show("study"); setStatus("");
+  await nextCard();
+});
 
 /* ---------- Report card ----------
    Every bird in the chosen area and tier (all families), grouped by family in taxonomic order, with how often it's
    reported and how well you know it. Mastery: New (not yet seen), Missed (last answer wrong), Learning, Learned (box 4+). */
-const MASTERY = [["learned","Learned"],["learning","Learning"],["missed","Missed"],["new","New"]];
-function mastery(s){ if(!s) return "new"; if(s.box === 0) return "missed"; return s.box >= 4 ? "learned" : "learning"; }
+const MASTERY = [["known","Known"],["recognized","Recognized"],["familiar","Familiar"],["new","New"]];
+const mastery = levelOf;
 function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
 function renderReport(){
   const body = $("#rcBody"); body.replaceChildren();
@@ -1249,10 +1379,10 @@ function renderReport(){
   const deck = cachedDeck();
   if(!deck){ body.append(el("p", "hint", "The bird list hasn't been built on this device yet. Press Start or Download first.")); return; }
   S.deck = deck; S.area = area;
-  const srs = LS.get("bf.srs." + S.trip, {});
+  const srs = loadSrs();
   const birds = deckSpecies(deck, area, tier);
   const m = sp => mastery(srs[sp.code]);
-  const count = list => { const c = { learned:0, learning:0, missed:0, new:0 }; for(const sp of list) c[m(sp)]++; return c; };
+  const count = list => { const c = { known:0, recognized:0, familiar:0, new:0 }; for(const sp of list) c[m(sp)]++; return c; };
 
   const all = count(birds);
   const sum = el("div", "rc-sum");
@@ -1264,12 +1394,22 @@ function renderReport(){
     const list = birds.filter(sp => freqClue(sp) === label); if(!list.length) continue;
     const c = count(list); const row = el("div"); const bar = el("div", "bar");
     for(const [k] of MASTERY){ if(!c[k]) continue; const i = el("i", "c-" + k); i.style.width = (100 * c[k] / list.length) + "%"; bar.append(i); }
-    row.append(el("span", null, label), bar, el("em", null, `${c.learned}/${list.length}`));
+    row.append(el("span", null, label), bar, el("em", null, `${c.known}/${list.length}`));
     freq.append(row);
   }
   const legend = el("div", "legend");
   for(const [k, label] of MASTERY){ const s = el("span"); s.append(el("i", "c-" + k), label); legend.append(s); }
   body.append(freq, legend);
+  /* progress toward each drills level in this area (counts all families, regardless of the Include setting) */
+  const dr = el("div", "rc-drills");
+  DRILL_TIERS.forEach((t, i) => {
+    const list = deckSpecies(deck, area, t), k = list.filter(sp => tierOf(sp, srs) === 2).length;
+    const row = el("div", k === list.length && list.length ? "" : "locked");
+    const ic = el("span"); ic.innerHTML = DRILL_ICONS[i];
+    row.append(ic, `${DRILL_NAMES[i]} drills`, el("em", null, `${k}/${list.length} Known`));
+    dr.append(row);
+  });
+  body.append(dr);
 
   for(const f of familiesIn(birds)){
     const list = birds.filter(sp => (sp.fam || "Other") === f.fam).sort((a, b) => (b.d[area] || 0) - (a.d[area] || 0));
@@ -1277,21 +1417,23 @@ function renderReport(){
     const sec = el("section", "rc-fam"); const head = el("header");
     const practice = el("button", "link", "Practice");
     practice.addEventListener("click", () => { LS.set(famKey(), [f.fam]); show("setup"); renderFamilies(); renderOffline(); setStatus(`Families set to ${f.fam}. Press Start.`); });
-    head.append(el("b", null, f.fam), el("span", null, `${c.learned}/${list.length} learned`), practice);
+    head.append(el("b", null, f.fam), el("span", null, `${c.known}/${list.length} known`), practice);
     sec.append(head);
     for(const sp of list){
       const s = srs[sp.code], k = m(sp);
       const row = el("div", "rc-row");
       const pill = el("span", "pill " + k, MASTERY.find(x => x[0] === k)[1]);
       if(s) pill.title = `${s.seen - s.lapses} right of ${s.seen}`;
-      row.append(el("span", null, sp.name), el("span", "f", freqClue(sp)), pill);
+      const name = el("span", null, sp.name);
+      if(s && s.strikes) name.append(el("span", "strikes", "✕".repeat(s.strikes)));
+      row.append(name, el("span", "f", freqClue(sp)), pill);
       sec.append(row);
     }
     body.append(sec);
   }
 }
 $("#btnReport").addEventListener("click", () => { readPicker(); renderReport(); show("report"); });
-$("#btnReportBack").addEventListener("click", () => show("setup"));
+$("#btnReportBack").addEventListener("click", () => { show("setup"); renderDrillButton(); });
 
 $("#btnReveal").addEventListener("click", revealNow);
 $("#btnGot").addEventListener("click", () => grade(true));
@@ -1301,11 +1443,11 @@ document.addEventListener("keydown", e => {
   if($("#study").hidden || e.target.matches("input,select,textarea") || !S.cur) return;
   if((e.key === "r" || e.key === "R") && audioEl && (S.cur.type === "audio" || (S.cur.sound && S.cur.sound.length))){ audioEl.currentTime = 0; audioEl.play().catch(() => {}); return; }
   if(e.key === "Escape"){ $("#btnBack").click(); return; }
-  if(S.style === "choice"){
+  if(S.cur.fmt !== "recall"){
     if(/^[1-4]$/.test(e.key) && !S.cur.answered && S.cur.opts) choose(S.cur.opts[Number(e.key)-1]);
     else if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a") && e.target.id !== "btnNext") return; e.preventDefault(); if(S.cur.answered) nextCard(); else revealNow(); }
   }else{
-    if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a")) return; e.preventDefault(); if(!S.cur.revealed) revealNow(); else grade(true); }
+    if(e.key === " " || e.key === "Enter"){ if(e.target.matches("button,summary,a") && e.target.id !== "btnNext") return; e.preventDefault(); if(S.cur.answered) nextCard(); else if(!S.cur.revealed) revealNow(); else grade(true); }
     else if(e.key === "ArrowRight" && S.cur.revealed) grade(true);
     else if(e.key === "ArrowLeft" && S.cur.revealed) grade(false);
   }
@@ -1318,8 +1460,8 @@ document.addEventListener("keydown", e => {
   S.area = LS.get("bf.area."+S.trip, "all");
   $("#tier").value = LS.get("bf.tier","0.10");
   $("#mode").value = LS.get("bf.mode","mixed");
-  $("#style").value = LS.get("bf.style","choice");
-  renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline();
+  $("#forceRecall").checked = !!LS.get("bf.forceRecall", false);
+  renderTrips(); renderAreas(); renderDeckInfo(); renderFamilies(); renderOffline(); renderDrillButton();
   refreshCachedSet().then(renderOffline);
   show(S.keys ? "setup" : "lock");
   if("serviceWorker" in navigator && location.protocol === "https:"){
