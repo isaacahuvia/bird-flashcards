@@ -666,7 +666,7 @@ async function inatTaxonId(sp){
       const h2 = b.results.find(t => (t.preferred_common_name || "").toLowerCase() === nm) || b.results.find(t => (t.matched_term || "").toLowerCase() === nm) || (a.results[0] && a.results[0].rank === "species" ? a.results[0] : null);
       if(h2) id = h2.id;
     }
-  }catch(e){ diag(`iNat taxon ${sp.name}: ${e.message}`); return null; }
+  }catch(e){ diag(`iNat taxon ${sp.name}: ${e.message}`); return undefined; }
   if(id) LS.set(k, {id}); else diag(`iNat: no taxon for ${sp.name} (${sp.sci})`);
   return id;
 }
@@ -679,16 +679,17 @@ async function inatTaxonId(sp){
 const MIN_LONG_SIDE = 1000;
 const NOT_A_LIVE_BIRD = new Set([7, 19, 23, 25, 26, 27, 28, 30, 35]);
 async function getPhotos(sp){
-  const id = await inatTaxonId(sp); if(!id) return [];
-  const out = [], seen = new Set();
+  const id = await inatTaxonId(sp);
+  if(!id){ const none = []; if(id === undefined) none.incomplete = true; return none; }
+  const out = [], seen = new Set(); let failed = false;
   const big = p => { const d = p.original_dimensions; return !d || Math.max(d.width, d.height) >= MIN_LONG_SIDE; };
   const add = (p, link, cat) => { if(!p || !p.url || seen.has(p.id) || !big(p)) return false; seen.add(p.id);
     out.push({ src:p.url.replace(/\/(square|small|medium|thumb)\./, "/large."), link, cat }); return true; };
   const liveBird = ob => !(ob.annotations || []).some(a => NOT_A_LIVE_BIRD.has(a.controlled_value_id)) && !/\b(nests?|nesting|eggs?|clutch)\b/i.test(ob.description || "");
-  const obs = q => getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&captive=false&order_by=votes&per_page=30${q}`).then(o => o.results).catch(e => { diag(`iNat photos ${sp.name}: ${e.message}`); return []; });
+  const obs = q => getJSON(`${INAT}/observations?taxon_id=${id}&photos=true&quality_grade=research&captive=false&order_by=votes&per_page=30${q}`).then(o => o.results).catch(e => { failed = true; diag(`iNat photos ${sp.name}: ${e.message}`); return []; });
   /* featured photos, then up to 5 each tagged male, female and juvenile (most-favorited first), then other favorited photos */
   const [taxon, male, female, juv, faved] = await Promise.all([
-    getJSON(`${INAT}/taxa/${id}`).catch(e => { diag(`iNat taxon photos ${sp.name}: ${e.message}`); return null; }),
+    getJSON(`${INAT}/taxa/${id}`).catch(e => { failed = true; diag(`iNat taxon photos ${sp.name}: ${e.message}`); return null; }),
     obs("&term_id=9&term_value_id=11"), obs("&term_id=9&term_value_id=10"), obs("&term_id=1&term_value_id=8"), obs("")
   ]);
   for(const tp of (taxon && taxon.results[0] && taxon.results[0].taxon_photos) || []) add(tp.photo, `https://www.inaturalist.org/photos/${tp.photo.id}`, "featured");
@@ -699,7 +700,9 @@ async function getPhotos(sp){
   for(const ob of faved){ if((ob.faves_count || 0) >= 1 && liveBird(ob)) add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, "faved"); }
   /* little-photographed birds: top up with other research-grade photos (still large, live birds) so there's variety */
   for(const ob of faved){ if(out.length >= 12) break; if((ob.faves_count || 0) < 1 && liveBird(ob)) add(ob.photos && ob.photos[0], `https://www.inaturalist.org/observations/${ob.id}`, "other"); }
-  return out.slice(0, 40);
+  const list = out.slice(0, 40);
+  if(failed && !list.length) list.incomplete = true;
+  return list;
 }
 
 /* High-quality audio only, from xeno-canto:
@@ -708,7 +711,7 @@ async function getPhotos(sp){
    from the trip's country get a small edge (regional song dialects). Dates are ignored. */
 function secs(len){ const p = String(len || "").split(":").map(Number); return p.length === 2 ? p[0]*60 + p[1] : (p.length === 3 ? p[0]*3600 + p[1]*60 + p[2] : 999); }
 async function xcSearch(query){
-  const j = await getJSON(`${XC}?query=${encodeURIComponent(query).replace(/%20/g, "+")}&per_page=100&key=${encodeURIComponent(xcKey())}`, 2);
+  const j = await getJSON(`${XC}?query=${encodeURIComponent(query).replace(/%20/g, "+")}&per_page=100&key=${encodeURIComponent(xcKey())}`, 4);
   return (j.recordings || []).filter(r => r.file && r.file !== "restricted_species" && !/^\s*$/.test(r.file));
 }
 async function getAudio(sp){
@@ -717,7 +720,7 @@ async function getAudio(sp){
   const country = TRIPS[S.trip].xcCountry;
   const usable = r => { const s = secs(r.length); return s >= 3 && s <= 180 && (!r.also || r.also.length <= 1); };
   const rank = r => (r.also && r.also.length ? 1 : 0) + (secs(r.length) > 60 ? 0.5 : 0) - (r.cnt === country ? 0.4 : 0);
-  let recs = [];
+  let recs = [], failed = false;
   try{
     for(const grade of ["A", "B"]){
       let got = (await xcSearch(`gen:${gen} sp:${epi} q:${grade}`)).filter(usable);
@@ -727,10 +730,12 @@ async function getAudio(sp){
       recs = recs.concat(got);
       if(recs.length >= 3) break;
     }
-  }catch(e){ diag(`xeno-canto ${sp.name}: ${e.message}`); }
+  }catch(e){ failed = true; diag(`xeno-canto ${sp.name}: ${e.message}`); }
   const songs = recs.filter(r => /song/i.test(r.type)), calls = recs.filter(r => !/song/i.test(r.type));
   const mixed = []; while(mixed.length < 10 && (songs.length || calls.length)){ if(songs.length) mixed.push(songs.shift()); if(calls.length && mixed.length < 10) mixed.push(calls.shift()); }
-  return mixed.map(r => ({ src:r.file, secs:secs(r.length), link:r.url || `https://xeno-canto.org/${r.id}` }));
+  const out = mixed.map(r => ({ src:r.file, secs:secs(r.length), link:r.url || `https://xeno-canto.org/${r.id}` }));
+  if(failed && !out.length) out.incomplete = true;   /* lookup failed: try again later rather than remember "none" */
+  return out;
 }
 
 /* ---------- Roomy storage ----------
@@ -785,7 +790,9 @@ async function moveOutOfLocalStorage(){
 const hiddenMedia = () => new Set(LS.get("bf.hidden", []));
 async function getMedia(sp, type){
   const hidden = hiddenMedia();
-  return (await getMediaAll(sp, type)).filter(it => !hidden.has(it.src));
+  const all = await getMediaAll(sp, type);
+  const out = all.filter(it => !hidden.has(it.src)); out.incomplete = !!all.incomplete;
+  return out;
 }
 async function getMediaAll(sp, type){
   const k = `${sp.code}|${type}`;
@@ -794,11 +801,16 @@ async function getMediaAll(sp, type){
   const stored = await kvGet(lsKey);
   if(Array.isArray(stored) && stored.length){ S.mediaCache.set(k, stored); return stored; }
   /* An empty result is remembered for 3 days, so a passing network problem doesn't hide a bird for good. */
-  if(stored && stored.empty && Date.now() - stored.empty < 3*864e5){ S.mediaCache.set(k, []); return []; }
+  if(stored && stored.empty && stored.v === 2 && Date.now() - stored.empty < 3*864e5){ S.mediaCache.set(k, []); return []; }
   if(!online()) return [];
-  const p = (type === "photo" ? getPhotos(sp) : getAudio(sp)).then(async list => { await kvSet(lsKey, list.length ? list : { empty:Date.now() }); return list; });
+  const p = (type === "photo" ? getPhotos(sp) : getAudio(sp)).then(async list => {
+    if(!list.incomplete) await kvSet(lsKey, list.length ? list : { empty:Date.now(), v:2 });
+    return list;
+  });
   S.mediaCache.set(k, p);
-  const list = await p; S.mediaCache.set(k, list); return list;
+  const list = await p;
+  if(list.incomplete) S.mediaCache.delete(k); else S.mediaCache.set(k, list);
+  return list;
 }
 
 /* ---------- Wikipedia: the sentences behind the habitat and where-seen clues ---------- */
@@ -947,7 +959,7 @@ function hasType(sp, type, have){
   if(have[type].has(sp.code)) return true;
   if(!cachedSet) return false;
   const list = kvMem.get(`m${MEDIA_VERSION}.${sp.code}|${type}`);
-  if(list && list.empty) return true;               /* looked up already: nothing of this kind exists */
+  if(list && list.empty) return list.v === 2;      /* looked up already: nothing of this kind exists (older records: check again) */
   if(!Array.isArray(list)) return false;
   const hidden = hiddenMedia();
   const st = list.filter(it => storable(it) && !hidden.has(it.src));
@@ -1024,20 +1036,23 @@ async function downloadDeck(){
         for(const type of need){
           /* Candidates in order; audio shortest first. A file over the size cap is skipped while other candidates remain. */
           const want = type === "photo" ? OFF_PHOTOS : OFF_AUDIO;
-          const cands = offlinePick(await getMedia(sp, type), type, want + 4);
-          let saved = 0;
+          const found = await getMedia(sp, type);
+          const cands = offlinePick(found, type, want + 4);
+          let saved = 0, missed = 0;
           for(let i = 0; i < cands.length && saved < want && !signal.aborted; i++){
             const it = cands[i];
             if(await cache.match(it.src)){ saved++; if(cachedSet) cachedSet.add(it.src); continue; }
-            const r = await fetch(it.src, { signal });
-            if(!r.ok) continue;
+            const r = await fetch(it.src, { signal }).catch(() => null);
+            if(!r || !r.ok){ missed++; continue; }
             let blob = await r.blob();
             if(type === "photo") blob = await shrinkPhoto(blob);
             if(blob.size > OFF_MAX_BYTES[type] && cands.length - i - 1 >= want - saved) continue;
             await cache.put(it.src, new Response(blob, { headers:{ "Content-Type": blob.type || (type === "photo" ? "image/jpeg" : "audio/mpeg") } }));
             bytes += blob.size; saved++; if(cachedSet) cachedSet.add(it.src);
           }
-          if(!signal.aborted) have[type].add(sp.code);
+          /* done only if the lookup worked and every file it needed arrived; otherwise it's retried next time */
+          if(!signal.aborted && !found.incomplete && (saved > 0 || !missed)) have[type].add(sp.code);
+          else if(found.incomplete) diag(`download: ${type} lookup for ${sp.name} failed; will retry`);
         }
       }catch(e){ if(!signal.aborted) diag(`download ${sp.name}: ${e.message}`); }
       done++;
@@ -1244,7 +1259,14 @@ async function nextCard(){
     diag(`skipped ${sp.name}: no ${online() ? "high-quality" : "downloaded"} ${S.mode === "mixed" ? "photo or audio" : S.mode === "both" ? "photo and recording" : S.mode}`);
   }
   if(!sp || !items.length || (S.mode === "both" && !sound.length)){
-    $("#stage").replaceChildren(msg(online() ? (S.mode === "both" ? "No birds in this deck have both a photo and a recording that meet the quality bar." : "No birds in this deck have media that meets the quality bar.") : "Nothing in this deck is downloaded for offline use. Go back and download it while online."));
+    const m = msg(online()
+      ? (S.mode === "both" ? "Couldn't find a bird with both a photo and a recording just now. iNaturalist or xeno-canto may be busy." : "Couldn't find a bird with a photo or recording just now. iNaturalist or xeno-canto may be busy.")
+      : "Nothing more in this deck is downloaded for offline use. Go back and download it while online.");
+    /* Try again: forget this session's skips and look again */
+    const again = document.createElement("button"); again.textContent = "Try again"; again.style.marginTop = "14px";
+    again.addEventListener("click", () => { S.noMedia = new Set(); S.mediaCache = new Map(); nextCard(); });
+    m.append(document.createElement("br"), again);
+    $("#stage").replaceChildren(m);
     renderStats(); return;
   }
   S.last.push(sp.code); if(S.last.length > 6) S.last.shift();
